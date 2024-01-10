@@ -1,15 +1,15 @@
+import os
+from parse_social_media.runner import file_parse_accounts
 
 BOT_NAME = "parse_social_media"
 
 SPIDER_MODULES = ["parse_social_media.spiders"]
 NEWSPIDER_MODULE = "parse_social_media.spiders"
 
-DOWNLOADER_MIDDLEWARES = {
-    'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 1,
-}
-
 LOG_ENABLED = True
-LOG_LEVEL = "INFO"
+LOG_LEVEL = "DEBUG"
+
+TOKENS_ACCOUNT = file_parse_accounts('../accounts_data.txt', 1)
 
 # USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 
@@ -25,7 +25,7 @@ CONCURRENT_REQUESTS = 32
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 3
+DOWNLOAD_DELAY = 1.0 / 3.0
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16
@@ -50,9 +50,15 @@ COOKIES_ENABLED = True
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
-#    "parse_social_media.middlewares.ParseSocialMediaDownloaderMiddleware": 543,
-#}
+DOWNLOADER_MIDDLEWARES = {
+    'rotating_proxies.middlewares.RotatingProxyMiddleware': 610,
+    'rotating_proxies.middlewares.BanDetectionMiddleware': 620,
+}
+
+# Proxy
+# ROTATING_PROXY_PAGE_RETRY_TIMES = 5
+# ROTATING_PROXY_PAGE_RETRY_HTTP_CODES = [500, 502, 503, 504, 522, 524, 408, 429]
+ROTATING_PROXY_LIST_PATH = '../proxys.txt'
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
@@ -62,9 +68,9 @@ COOKIES_ENABLED = True
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    "parse_social_media.pipelines.ParseSocialMediaPipeline": 300,
-#}
+ITEM_PIPELINES = {
+   "parse_social_media.pipelines.ParseSocialMediaPipeline": 300,
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
