@@ -1,6 +1,3 @@
-import os
-from parse_social_media.runner import file_parse_accounts
-
 BOT_NAME = "parse_social_media"
 
 SPIDER_MODULES = ["parse_social_media.spiders"]
@@ -9,7 +6,7 @@ NEWSPIDER_MODULE = "parse_social_media.spiders"
 LOG_ENABLED = True
 LOG_LEVEL = "DEBUG"
 
-TOKENS_ACCOUNT = file_parse_accounts('../accounts_data.txt', 1)
+CHECK_ACCOUNTS = True
 
 # USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 
@@ -25,7 +22,7 @@ CONCURRENT_REQUESTS = 32
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 1.0 / 3.0
+DOWNLOAD_DELAY = 0
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16

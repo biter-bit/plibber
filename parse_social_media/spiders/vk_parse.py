@@ -1,18 +1,14 @@
 import scrapy
 from scrapy.http import HtmlResponse
-from dotenv import load_dotenv
 import os
-import random
 import json
 from parse_social_media.items import ParseSocialMediaItem
-import time
 import math
 
 
 class VkParseSpider(scrapy.Spider):
     name = "vk_parse_groups"
     start_urls = ['https://vk.com/']
-    tokens = os.getenv(f"VK_ACCESS_TOKEN").split(',')
     result_tokens = []
 
     def calculate_account_range(self, count_groups, count_accounts, idx):
@@ -42,31 +38,11 @@ class VkParseSpider(scrapy.Spider):
                 meta={'range_id': result_string, 'token': token}
             )
 
-    # def check_token_account(self, response: HtmlResponse):
-    #     response_json = response.json()
-    #
-    #     if 'error' not in response_json:
-    #         self.result_tokens.append(self.tokens[0])
-    #
-    #     for token in self.tokens[1:]:
-    #         yield response.follow(
-    #             url=f'https://api.vk.com/method/user.get?access_token={token}&v=5.154&user_ids=1',
-    #             callback=self.check_token_list,
-    #             meta={'token': token}
-    #         )
-    #     yield from self.start_requests()
-    #
-    # def check_token_list(self, response: HtmlResponse):
-    #     response_json = response.json()
-    #
-    #     if 'error' not in response_json:
-    #         self.result_tokens.append(response.meta['token'])
-
     def parse(self, response: HtmlResponse):
         # список групп (list)
         range_ids = response.meta['range_id']
         # кол-во всех запросов (int)
-        number_of_requests = math.ceil(len(range_ids)/350)
+        number_of_requests = math.ceil(len(range_ids)/370)
         # кол-во запросов в общем (int)
         number_total_requests = math.ceil(number_of_requests/25)
         # по сколько групп на каждый внутренний запрос (int)
@@ -77,10 +53,9 @@ class VkParseSpider(scrapy.Spider):
             # первая пачка групп для запроса
             groups_id_list_vk_parse = range_ids[i * number_iter_groups:i * number_iter_groups + number_iter_groups]
             length_groups = len(groups_id_list_vk_parse)
-            max_requests = math.ceil(length_groups/350)
+            max_requests = math.ceil(length_groups/370)
 
             groups_id_str_vk_parse = str(groups_id_list_vk_parse)
-            # group_id_str = ','.join(map(str, range_ids[i * 500:i * 500 + 500]))
             vk_script = """
     var groups_id_list = %s;
     var max_requests = %s;
