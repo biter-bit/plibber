@@ -180,8 +180,8 @@ scrapy.cfg
 .idea
 
 # Tokens and proxys
-proxys.txt
-accounts_data.txt
+parse_social_media/proxys.txt
+parse_social_media/accounts_data.txt
 environ.txt
 
 # End of https://www.toptal.com/developers/gitignore/api/python
