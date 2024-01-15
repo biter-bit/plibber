@@ -6,11 +6,12 @@ from parse_social_media.items import ParseSocialMediaItem
 import math
 
 
-class VkParseSpider(scrapy.Spider):
-    name = "vk_parse1"
-    start_urls = ['https://vk.com/']
+class VkParse7Spider(scrapy.Spider):
+    name = "vk_parse7"
+    start_urls = ["https://vk.com"]
+
     custom_settings = {
-        "NUMBER_OF_ACCOUNT": 1,
+        "NUMBER_OF_ACCOUNT": 7,
     }
 
     # def calculate_account_range(self, count_groups, count_accounts, idx):
@@ -23,7 +24,7 @@ class VkParseSpider(scrapy.Spider):
         number_of_account = self.settings['NUMBER_OF_ACCOUNT']
         count_groups = int(os.getenv('COUNT_GROUPS'))
         count_accounts = int(os.getenv('COUNT_SPIDERS'))
-        token = os.getenv('ACCOUNT_TOKENS').split(',')[number_of_account-1]
+        token = os.getenv('ACCOUNT_TOKENS').split(',')[number_of_account - 1]
 
         ending_position = ((count_groups // count_accounts) * number_of_account) + 1
         starting_position = (ending_position - (count_groups // count_accounts)) + 1
@@ -46,7 +47,7 @@ class VkParseSpider(scrapy.Spider):
         # список групп (list)
         range_ids = response.meta['range_id']
         # кол-во всех запросов (int)
-        number_of_requests = math.ceil(len(range_ids)/350)
+        number_of_requests = math.ceil(len(range_ids)/380)
         # кол-во запросов в общем (int)
         number_total_requests = math.ceil(number_of_requests/25)
         # по сколько групп на каждый внутренний запрос (int)
@@ -57,7 +58,7 @@ class VkParseSpider(scrapy.Spider):
             # первая пачка групп для запроса
             groups_id_list_vk_parse = range_ids[i * number_iter_groups:i * number_iter_groups + number_iter_groups]
             length_groups = len(groups_id_list_vk_parse)
-            max_requests = math.ceil(length_groups/350)
+            max_requests = math.ceil(length_groups/380)
 
             groups_id_str_vk_parse = str(groups_id_list_vk_parse)
             vk_script = """
@@ -66,8 +67,8 @@ class VkParseSpider(scrapy.Spider):
     var list_response = [];
     var i = 0;
     while (i < max_requests) {
-        var start_idx = i * 350;
-        var end_idx = start_idx + 350;
+        var start_idx = i * 380;
+        var end_idx = start_idx + 380;
         var groups_str = groups_id_list.slice(start_idx, end_idx);
         var response = API.groups.getById({
             group_ids: groups_str,

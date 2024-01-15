@@ -1,3 +1,12 @@
+import os
+
+STARTING_POSITION = 1
+ENDING_POSITION = 25001
+
+PATH_BASE = os.getcwd()
+
+NUMBER_OF_ACCOUNT = 0
+
 BOT_NAME = "parse_social_media"
 
 SPIDER_MODULES = ["parse_social_media.spiders"]
@@ -6,9 +15,7 @@ NEWSPIDER_MODULE = "parse_social_media.spiders"
 LOG_ENABLED = True
 LOG_LEVEL = "DEBUG"
 
-CHECK_ACCOUNTS = True
-
-# USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = "parse_social_media (+http://www.yourdomain.com)"
@@ -17,12 +24,12 @@ CHECK_ACCOUNTS = True
 ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-CONCURRENT_REQUESTS = 32
+CONCURRENT_REQUESTS = 16
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 0
+DOWNLOAD_DELAY = 5
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16
@@ -55,7 +62,8 @@ DOWNLOADER_MIDDLEWARES = {
 # Proxy
 # ROTATING_PROXY_PAGE_RETRY_TIMES = 5
 # ROTATING_PROXY_PAGE_RETRY_HTTP_CODES = [500, 502, 503, 504, 522, 524, 408, 429]
-ROTATING_PROXY_LIST_PATH = '../proxys.txt'
+ROTATING_PROXY_LIST_PATH = f'{PATH_BASE}/proxys.txt'
+RETRY_TIMES = 100
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html

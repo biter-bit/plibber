@@ -1,10 +1,27 @@
-from scrapy.crawler import CrawlerProcess
-from scrapy.settings import Settings
 from dotenv import load_dotenv
+
+load_dotenv()
+
+from scrapy.crawler import CrawlerProcess, Crawler, CrawlerRunner
+from scrapy.settings import Settings
 import os
 import requests
+import multiprocessing
+import time
+from scrapy.utils.project import get_project_settings
 
 from parse_social_media.spiders.vk_parse import VkParseSpider
+from parse_social_media.spiders.vk_parse2 import VkParse2Spider
+from parse_social_media.spiders.vk_parse3 import VkParse3Spider
+from parse_social_media.spiders.vk_parse4 import VkParse4Spider
+from parse_social_media.spiders.vk_parse5 import VkParse5Spider
+from parse_social_media.spiders.vk_parse6 import VkParse6Spider
+from parse_social_media.spiders.vk_parse7 import VkParse7Spider
+from parse_social_media.spiders.vk_parse8 import VkParse8Spider
+from parse_social_media.spiders.vk_parse9 import VkParse9Spider
+from parse_social_media.spiders.vk_parse10 import VkParse10Spider
+
+from parse_social_media.settings import PATH_BASE
 from parse_social_media import settings
 
 
@@ -56,33 +73,68 @@ def file_parse_accounts(file_path, type_content):
 #     return result_accounts
 
 
-def request_check_tokens(tokens):
+def request_check_tokens(tokens, mode):
     list_work_accounts = []
     for token in tokens:
         try:
-            # response = requests.get('https://api.vk.com/method/users.get?user_ids=1&v=5.154&access_token=' + token)
             response = requests.get('https://api.vk.com/method/groups.getById?group_ids=1&v=5.154&access_token=' + token)
             if 'error' not in response.text:
                 list_work_accounts.append(token)
         except Exception as e:
             print(f"Error processing token {token}: {e}")
-    str_work_accounts = ','.join(list_work_accounts)
-    return str_work_accounts
+    work_accounts = list_work_accounts
+    if mode == 1:
+        work_accounts = ','.join(list_work_accounts)
+    return work_accounts
+
+
+def start_project(spider):
+    process = CrawlerProcess(settings=get_project_settings())
+    process.crawl(spider)
+    process.start()
 
 
 if __name__ == "__main__":
-    crawler_settings = Settings()
-    crawler_settings.setmodule(settings)
 
-    result_accounts = file_parse_accounts('../accounts_data.txt', 2)
-    if settings.CHECK_ACCOUNTS:
+    result_accounts = file_parse_accounts(f'{PATH_BASE}/accounts_data.txt', 2)
+    if os.getenv("CHECK_ACCOUNTS"):
         print('Проверка токенов...')
-        result_accounts = request_check_tokens(result_accounts)
-        print('Проверка токенов завершена')
-    os.environ['VK_ACCESS_TOKEN'] = result_accounts
-    load_dotenv()
+        result_accounts = request_check_tokens(result_accounts, 1)
+        list_result_accounts = len(result_accounts.split(','))
+        print(f'Проверка токенов завершена. Рабочих токенов {list_result_accounts} шт.')
 
-    process = CrawlerProcess(settings=crawler_settings)
-    process.crawl(VkParseSpider)
+    os.environ['ACCOUNT_TOKENS'] = result_accounts
 
-    process.start()
+    # Название проекта
+    project_name = "parse_social_media"
+
+    # Классы пауков
+    spiders_to_run = [
+        VkParseSpider,
+        VkParse2Spider,
+        VkParse3Spider,
+        VkParse4Spider,
+        VkParse5Spider,
+        VkParse6Spider,
+        VkParse7Spider,
+        VkParse8Spider,
+        VkParse9Spider,
+        VkParse10Spider
+    ]
+
+    # запущенные процессы
+    processes = []
+
+    count_spiders = int(os.getenv('COUNT_SPIDERS'))
+
+    # запуск процессов (пауков)
+    for idx in range(0, count_spiders):
+        print(f"Запуск паука {spiders_to_run[idx]}...")
+        process = multiprocessing.Process(target=start_project, args=(spiders_to_run[idx],))
+        processes.append(process)
+        process.start()
+
+    for process in processes:
+        process.join()
+
+    print("Все пауки закончили работу.")

@@ -16,11 +16,7 @@ class ParseSocialMediaPipeline:
         self.mongo_base = client.groups
 
     def process_item(self, item, spider):
-        collections_item = self.mongo_base[spider.name]
+        collections_item = self.mongo_base['vk_parse_groups']
         for i in item['groups_data']:
-            if i:
-                for ind in i:
-                    collections_item.insert_one(ind)
-            else:
-                print()
+            collections_item.insert_one(i)
         return item
