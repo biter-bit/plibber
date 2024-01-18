@@ -7,4 +7,10 @@ import scrapy
 
 
 class ParseSocialMediaItem(scrapy.Item):
-    groups_data = scrapy.Field()
+    type = scrapy.Field()
+    data = scrapy.Field()
+
+
+class ParseSocialMediaItemWall(scrapy.Item):
+    type = scrapy.Field()
+    data = scrapy.Field()
