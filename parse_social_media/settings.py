@@ -1,11 +1,6 @@
 import os
 
-STARTING_POSITION = 1
-ENDING_POSITION = 25001
-
 PATH_BASE = os.getcwd()
-
-NUMBER_OF_ACCOUNT = 0
 
 BOT_NAME = "parse_social_media"
 
@@ -26,10 +21,10 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 0.34
+DOWNLOAD_DELAY = 0
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-CONCURRENT_REQUESTS = 6
+CONCURRENT_REQUESTS = 16
 
 # The download delay setting will honor only one of:
 # CONCURRENT_REQUESTS_PER_DOMAIN = 1
@@ -68,9 +63,9 @@ RETRY_TIMES = 100
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
-#EXTENSIONS = {
-#    "scrapy.extensions.telnet.TelnetConsole": None,
-#}
+EXTENSIONS = {
+    "scrapy.extensions.telnet.TelnetConsole": None,
+}
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html

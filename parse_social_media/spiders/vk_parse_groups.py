@@ -4,18 +4,20 @@ import os
 import json
 from parse_social_media.items import ParseSocialMediaItem
 import math
-from random import choice
 
 
-class VkParseGroupSpider1(scrapy.Spider):
+class VkParseGroupSpider(scrapy.Spider):
     name = "vk_parse_group_1"
-    custom_settings = {
-        "NUMBER_OF_ACCOUNT": 1,
-    }
 
-    def get_list_groups(self, count_groups, count_accounts, number_of_account):
-        ending_position = ((count_groups // count_accounts) * number_of_account) + 1  # индекс последнего элемента
-        starting_position = ((ending_position - 1) - (count_groups // count_accounts))  # индекс первого элемента
+    def __init__(self, number_of_account=None, number_of_groups=None, name=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.number_of_account = number_of_account
+        self.number_of_groups = number_of_groups
+        self.name = name
+
+    def get_list_groups(self, count_groups, count_process, number_of_group, count_groups_spiders):
+        ending_position = count_groups // count_process // count_groups_spiders * number_of_group + 1  # индекс последнего элемента
+        starting_position = ending_position - count_groups // count_process // count_groups_spiders  # индекс первого элемента
         groups_list = list(range(starting_position, ending_position))
         return groups_list
 
@@ -45,25 +47,28 @@ class VkParseGroupSpider1(scrapy.Spider):
         return vk_script.replace('\n', ' ')
 
     def start_requests(self):
-        number_of_account = self.settings['NUMBER_OF_ACCOUNT']  # номер аккаунта
+        number_of_account = self.number_of_account
+        number_of_groups = self.number_of_groups  # номер аккаунта
         count_groups = int(os.getenv('COUNT_GROUPS'))  # кол-во групп, которые нужно обработать
-        count_accounts = int(os.getenv('COUNT_SPIDERS'))  # кол-во включенных процессов (аккаунтов, пауков)
+        count_process = int(os.getenv('COUNT_PROCESS'))  # кол-во включенных процессов (аккаунтов, пауков)
+        count_groups_spiders = int(os.getenv('COUNT_GROUPS_SPIDERS'))
 
-        token = choice(os.getenv('ACCOUNT_TOKENS').split(','))  # рабочий токен
+        token = os.getenv('ACCOUNT_TOKENS').split(',')[number_of_account-1]  # рабочий токен
 
-        groups_list = self.get_list_groups(count_groups, count_accounts, number_of_account)  # итоговый список
+        # with open('config.json', 'a') as config_file:
+        #     config_file.write(token + '\n')
 
-        url_groups = (f'https://api.vk.com/method/groups.getById?access_token={token}&v=5.154&group_ids=1&fields=can_see_all_posts,members_count')
+        groups_list = self.get_list_groups(count_groups, count_process, number_of_groups, count_groups_spiders)  # итоговый список
+
+        url_groups = f'https://api.vk.com/method/groups.getById?access_token={token}&v=5.154&group_ids=1&fields=can_see_all_posts,members_count'
 
         yield scrapy.Request(
             url=url_groups,
             callback=self.parse,
-            meta={'groups_list': groups_list, 'token': token, 'type': 'group'}
+            meta={'groups_list': groups_list, 'token': token},
         )
 
     def parse(self, response: HtmlResponse):
-        # ответ в формате словаря
-        response_json = response.json()
         # рабочий токен
         token_account = response.meta['token']
 
@@ -90,5 +95,8 @@ class VkParseGroupSpider1(scrapy.Spider):
 
     def groups_preparetion(self, response: HtmlResponse):
         groups_data = json.loads(response.text)
-        result_groups_data = sum(groups_data['response'], [])
-        yield ParseSocialMediaItem(type='group', data=result_groups_data)
+        try:
+            result_groups_data = sum(groups_data['response'], [])
+            yield ParseSocialMediaItem(type='group', data=result_groups_data)
+        except KeyError:
+            self.logger.debug(f'Got wall_data: {groups_data}')

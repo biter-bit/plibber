@@ -18,10 +18,11 @@ class ParseSocialMediaPipeline:
     def process_item(self, item, spider):
         if item['type'] == 'group':
             collections_item = self.mongo_base['vk_parse_groups']
+            for i in item['data']:
+                collections_item.insert_one(i)
         elif item['type'] == 'wall':
             collections_item = self.mongo_base['vk_parse_wall']
+            collections_item.insert_one(dict(item))
         else:
             collections_item = self.mongo_base['other']
-        for i in item['data']:
-            collections_item.insert_one(i)
         return item

@@ -1,13 +1,6 @@
 import requests
 from scrapy.utils.project import get_project_settings
-from scrapy.crawler import CrawlerProcess, Crawler, CrawlerRunner
-
-
-def start_project(spider):
-    process = CrawlerProcess(settings=get_project_settings())
-    process.crawl(spider[0])
-    process.crawl(spider[1])
-    process.start()
+from scrapy.crawler import CrawlerProcess
 
 
 def file_parse_accounts(file_path, type_content):
@@ -40,6 +33,34 @@ def request_check_tokens(tokens, mode):
     if mode == 1:
         work_accounts = ','.join(list_work_accounts)
     return work_accounts
+
+
+def start_project(spiders, num_process, count_groups_spiders):
+    process = CrawlerProcess(settings=get_project_settings())
+
+    a = spiders[0]
+    custom_settings = {
+        'CONCURRENT_REQUESTS': 1,
+        'DOWNLOAD_DELAY': 1
+    }
+    a.custom_settings = custom_settings
+    a.settings = get_project_settings().copy()
+    a.settings.update(custom_settings)
+
+    b = spiders[1]
+    custom_settings = {
+        'CONCURRENT_REQUESTS': 3,
+        'DOWNLOAD_DELAY': 0.33
+    }
+    b.custom_settings = custom_settings
+    b.settings = get_project_settings().copy()
+    b.settings.update(custom_settings)
+
+    for i in range(num_process*2, num_process*2+count_groups_spiders):
+        process.crawl(a, number_of_account=i+1, number_of_groups=i+1, name=f'vk_parse_group_{i+1}')
+        process.crawl(b, number_of_account=i+2, number_of_groups=i+1, name=f'vk_parse_posts_{i+2}')
+
+    process.start()
 
 
 # def file_parse_proxys(file_path):
