@@ -72,8 +72,8 @@ def get_list_groups(count_groups, count_process, number_of_group, count_groups_s
     return groups_list
 
 
-class VkParsePostsSpider(scrapy.Spider):
-    name = "vk_parse_posts_1"
+class VkParseUpdateSpider(scrapy.Spider):
+    name = "vk_parse_update_1"
 
     def __init__(self, number_of_account=None, number_of_groups=None, name=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -88,7 +88,6 @@ class VkParsePostsSpider(scrapy.Spider):
         self.error = 'done'
 
         self.group_id = None
-        self.offset = None
 
         # кол-во групп, которые нужно обработать
         self.count_groups = int(os.getenv('COUNT_GROUPS'))
@@ -112,7 +111,7 @@ class VkParsePostsSpider(scrapy.Spider):
         for group_id in self.groups_list:
             self.group_id = group_id
             url_posts = (f'https://api.vk.com/method/wall.get?'
-                         f'access_token={self.token}&owner_id={-self.group_id}&count=1&v=5.154')
+                         f'access_token={self.token}&owner_id={-self.group_id}&count=50&v=5.154')
             yield scrapy.Request(url=url_posts, callback=self.parse)
 
     def parse(self, response: HtmlResponse):
@@ -136,76 +135,22 @@ class VkParsePostsSpider(scrapy.Spider):
             # вызываем raise если есть ошибки 6, 13, 29
             error(response_json)
 
-            # общее кол-во постов в группе
-            count_posts = response_json['response']['count']
-            # кол-во постов за 1 запрос execute
-            count_posts_for_execute = 25 * 25  # второе число заменить
-            # всего execute запросов
-            total_execute_requests = math.ceil(count_posts / count_posts_for_execute)
-
-            for i in range(0, total_execute_requests):
-                self.offset = i * count_posts_for_execute
-                vk_script = get_script_vk_parse_posts(-self.group_id, self.offset)
-                url = f'https://api.vk.com/method/execute'
-                yield scrapy.FormRequest(
-                    url,
-                    callback=self.posts_preparetion,
-                    formdata={
-                        'access_token': self.token,
-                        'code': vk_script,
-                        'v': "5.154"
-                    },
-                    meta={
-                        'token': self.token
-                    }
-                )
-
-        except Error6Exception:
-            self.error = 6
-            self.list_errors.append({
-                "group_id": self.group_id,
-                "offset": self.offset,
-                "error": self.error
-            })
-
-        except Error13Exception:
-            self.error = 13
-            self.list_errors.append({
-                "group_id": self.group_id,
-                "offset": self.offset,
-                "error": self.error
-            })
-
-        except Error29Exception:
-            self.error = 29
-            self.list_errors.append({
-                "group_id": self.group_id,
-                "offset": self.offset,
-                "error": self.error
-            })
-
-    def posts_preparetion(self, response: HtmlResponse):
-        wall_data = json.loads(response.text)
-        try:
-            # вызываем raise если есть ошибки 6, 13, 29
-            error(wall_data)
-
-            wall_response = wall_data['response']
-            for post in range(len(wall_response['post_id'])):
-                post_id = wall_response['post_id'][post]
-                group_id = wall_response['group_id'][post]
-                hash_post = wall_response['hash_post'][post]
-                text = wall_response['text'][post]
-                photo = wall_response['photo'][post]
-                marked_as_ads = wall_response['market_as_ads'][post]
-                views = wall_response['views'][post]
-                likes = wall_response['likes'][post]
-                comments = wall_response['comments'][post]
-                reposts = wall_response['reposts'][post]
-                date = wall_response['date'][post]
+            wall_response = response_json['response']['items']
+            for post in wall_response:
+                post_id = post['id']
+                group_id = post['owner_id']
+                hash_post = post['hash']
+                text = post['text']
+                photo = post['attachments']
+                marked_as_ads = post['marked_as_ads']
+                views = post['views']['count']
+                likes = post['likes']['count']
+                comments = post['comments']["count"]
+                reposts = post['reposts']['count']
+                date = post['date']
                 # result_groups_data = sum(wall_data['response'], [])
                 yield ParseSocialMediaItemWall(
-                    type='wall',
+                    type='update',
                     post_id=post_id,
                     group_id=group_id,
                     hash_post=hash_post,
@@ -223,7 +168,6 @@ class VkParsePostsSpider(scrapy.Spider):
             self.error = 6
             self.list_errors.append({
                 "group_id": self.group_id,
-                "offset": self.offset,
                 "error": self.error
             })
 
@@ -231,7 +175,6 @@ class VkParsePostsSpider(scrapy.Spider):
             self.error = 13
             self.list_errors.append({
                 "group_id": self.group_id,
-                "offset": self.offset,
                 "error": self.error
             })
 
@@ -239,7 +182,6 @@ class VkParsePostsSpider(scrapy.Spider):
             self.error = 29
             self.list_errors.append({
                 "group_id": self.group_id,
-                "offset": self.offset,
                 "error": self.error
             })
 
@@ -263,7 +205,7 @@ class VkParsePostsSpider(scrapy.Spider):
         }
 
         # создание файла (чтение)
-        existing_file_path = f'data/error_posts.json'
+        existing_file_path = f'data/error_update.json'
         try:
             # Прочитать данные из существующего файла
             with open(existing_file_path, 'r') as json_file:

@@ -19,10 +19,14 @@ class ParseSocialMediaPipeline:
         if item['type'] == 'group':
             collections_item = self.mongo_base['vk_parse_groups']
             for i in item['data']:
-                collections_item.insert_one(i)
+                if not collections_item.find_one({'id': i['id']}):
+                    collections_item.insert_one(i)
         elif item['type'] == 'wall':
             collections_item = self.mongo_base['vk_parse_wall']
-            collections_item.insert_one(dict(item))
-        else:
-            collections_item = self.mongo_base['other']
+            if not collections_item.find_one({'hash_post': item['hash_post']}):
+                collections_item.insert_one(dict(item))
+        elif item['type'] == 'update':
+            collections_item = self.mongo_base['vk_parse_wall']
+            if not collections_item.find_one({'hash_post': item['hash_post']}):
+                collections_item.insert_one(dict(item))
         return item

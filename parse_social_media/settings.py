@@ -9,6 +9,7 @@ NEWSPIDER_MODULE = "parse_social_media.spiders"
 
 LOG_ENABLED = True
 LOG_LEVEL = "DEBUG"
+# LOG_FILE = f'{PATH_BASE}/logs/spider.log'
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
@@ -21,7 +22,7 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 0
+DOWNLOAD_DELAY = 10
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 CONCURRENT_REQUESTS = 16
@@ -58,12 +59,15 @@ DOWNLOADER_MIDDLEWARES = {
 # Proxy
 # ROTATING_PROXY_PAGE_RETRY_TIMES = 5
 # ROTATING_PROXY_PAGE_RETRY_HTTP_CODES = [500, 502, 503, 504, 522, 524, 408, 429]
-ROTATING_PROXY_LIST_PATH = f'{PATH_BASE}/proxys.txt'
+# ROTATING_PROXY_LIST_PATH = f'{PATH_BASE}/proxys.txt'
+ROTATING_PROXY_LIST = []
 RETRY_TIMES = 100
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
 EXTENSIONS = {
+    # 'parse_social_media.extensions.MyExtension': 500,
+    'scrapy.extensions.closespider.CloseSpider': 500,
     "scrapy.extensions.telnet.TelnetConsole": None,
 }
 
@@ -98,3 +102,5 @@ ITEM_PIPELINES = {
 REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 FEED_EXPORT_ENCODING = "utf-8"
+
+CLOSESPIDER_PAGECOUNT = 0

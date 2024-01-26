@@ -1,0 +1,7 @@
+COUNT_PROCESS=1 # кол-во процессов
+COUNT_GROUPS_SPIDERS=2 # кол-во пауков на один процесс
+COUNT_GROUPS=100000 # кол-во групп для парсинга
+CHECK_ACCOUNTS=True
+CHECK_PROXYS=True
+ACCOUNT_TOKENS=''
+PROXY_TOKENS=''

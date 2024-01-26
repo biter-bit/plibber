@@ -18,8 +18,10 @@ class ParseSocialMediaItemWall(scrapy.Item):
     hash_post = scrapy.Field()
     text = scrapy.Field()
     photo = scrapy.Field()
-    market_as_ads = scrapy.Field()
+    marked_as_ads = scrapy.Field()
     views = scrapy.Field()
     likes = scrapy.Field()
     comments = scrapy.Field()
+    reposts = scrapy.Field()
+    date = scrapy.Field()
 
