@@ -1,0 +1,25 @@
+# Use root/example as user/password credentials
+version: '3.1'
+
+services:
+  # Сервис для MongoDB
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin
+    volumes:
+      - ./mongo_data:/data/db
+
+  # Сервис для Scrapy
+  scrapy:
+    build: .
+    command: python -m parse_social_media.runner
+    container_name: scrapy
+    depends_on:
+      - mongo
+    environment:
+      MONGO_URI: mongodb://admin:admin@mongo:27017/groups

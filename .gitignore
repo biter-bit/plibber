@@ -179,4 +179,10 @@ scrapy.cfg
 # Pycharm
 .idea
 
+# Tokens and proxys
+parse_social_media/data/proxys.txt
+parse_social_media/data/accounts_data.txt
+parse_social_media/logs/token_finish.json
+parse_social_media/data
+
 # End of https://www.toptal.com/developers/gitignore/api/python
