@@ -35,12 +35,7 @@ def get_script_vk_parse_posts(group_id, offset):
             offset: (i * 25) + {offset},
             count: 25,
         }});
-        var result = {{'post_id': response.items@.id, 'group_id': response.items@.owner_id, 
-            'hash_post': response.items@.hash, 'text': response.items@.text, 'photo': response.items@.attachments, 
-            'market_as_ads':  response.items@.marked_as_ads, 'views':  response.items@.views@.count, 
-            'likes': response.items@.likes@.count, 'reposts': response.items@.reposts@.count, 
-            'comments': response.items@.comments@.count, 'date': response.items@.date
-        }};
+        var result = {{'post_id': response.items@.id, 'group_id': response.items@.owner_id, 'hash_post': response.items@.hash, 'text': response.items@.text, 'photo': response.items@.attachments, 'market_as_ads':  response.items@.marked_as_ads, 'views':  response.items@.views@.count, 'likes': response.items@.likes@.count, 'reposts': response.items@.reposts@.count, 'comments': response.items@.comments@.count, 'date': response.items@.date}};
         list_response.post_id = list_response.post_id + result.post_id;
         list_response.group_id = list_response.group_id + result.group_id;
         list_response.hash_post = list_response.hash_post + result.hash_post;
@@ -87,11 +82,11 @@ class VkParsePostsSpider(scrapy.Spider):
         self.groups_list = None
         self.error = 'done'
 
-        self.group_id = None
         self.offset = None
 
-        # кол-во групп, которые нужно обработать
-        self.count_groups = int(os.getenv('COUNT_GROUPS'))
+        self.start_idx_group = int(os.getenv('START_IDX_GROUP'))
+        self.end_idx_group = int(os.getenv('END_IDX_GROUP'))
+        self.count_groups = self.end_idx_group - self.start_idx_group  # кол-во групп, которые нужно обработать
 
         # кол-во включенных процессов (аккаунтов, пауков)
         self.count_process = int(os.getenv('COUNT_PROCESS'))
@@ -101,19 +96,12 @@ class VkParsePostsSpider(scrapy.Spider):
 
     def start_requests(self):
         # итоговый список
-        self.groups_list = get_list_groups(
-            self.count_groups,
-            self.count_process,
-            self.number_of_groups,
-            self.count_groups_spiders
-        )
-        self.group_id = self.groups_list[0]
+        self.groups_list = list(range(self.start_idx_group, self.end_idx_group))
 
         for group_id in self.groups_list:
-            self.group_id = group_id
             url_posts = (f'https://api.vk.com/method/wall.get?'
-                         f'access_token={self.token}&owner_id={-self.group_id}&count=1&v=5.154')
-            yield scrapy.Request(url=url_posts, callback=self.parse)
+                         f'access_token={self.token}&owner_id={-group_id}&count=1&v=5.154')
+            yield scrapy.Request(url=url_posts, callback=self.parse, meta={'group_id': group_id})
 
     def parse(self, response: HtmlResponse):
         # ответ в формате словаря
@@ -136,6 +124,7 @@ class VkParsePostsSpider(scrapy.Spider):
             # вызываем raise если есть ошибки 6, 13, 29
             error(response_json)
 
+            group_id = response.meta['group_id']
             # общее кол-во постов в группе
             count_posts = response_json['response']['count']
             # кол-во постов за 1 запрос execute
@@ -145,7 +134,7 @@ class VkParsePostsSpider(scrapy.Spider):
 
             for i in range(0, total_execute_requests):
                 self.offset = i * count_posts_for_execute
-                vk_script = get_script_vk_parse_posts(-self.group_id, self.offset)
+                vk_script = get_script_vk_parse_posts(-group_id, self.offset)
                 url = f'https://api.vk.com/method/execute'
                 yield scrapy.FormRequest(
                     url,
@@ -156,14 +145,14 @@ class VkParsePostsSpider(scrapy.Spider):
                         'v': "5.154"
                     },
                     meta={
-                        'token': self.token
+                        'group_id': group_id
                     }
                 )
 
         except Error6Exception:
             self.error = 6
             self.list_errors.append({
-                "group_id": self.group_id,
+                "group_id": response.meta['group_id'],
                 "offset": self.offset,
                 "error": self.error
             })
@@ -171,7 +160,7 @@ class VkParsePostsSpider(scrapy.Spider):
         except Error13Exception:
             self.error = 13
             self.list_errors.append({
-                "group_id": self.group_id,
+                "group_id": response.meta['group_id'],
                 "offset": self.offset,
                 "error": self.error
             })
@@ -179,7 +168,7 @@ class VkParsePostsSpider(scrapy.Spider):
         except Error29Exception:
             self.error = 29
             self.list_errors.append({
-                "group_id": self.group_id,
+                "group_id": response.meta['group_id'],
                 "offset": self.offset,
                 "error": self.error
             })
@@ -222,7 +211,7 @@ class VkParsePostsSpider(scrapy.Spider):
         except Error6Exception:
             self.error = 6
             self.list_errors.append({
-                "group_id": self.group_id,
+                "group_id": response.meta['group_id'],
                 "offset": self.offset,
                 "error": self.error
             })
@@ -230,7 +219,7 @@ class VkParsePostsSpider(scrapy.Spider):
         except Error13Exception:
             self.error = 13
             self.list_errors.append({
-                "group_id": self.group_id,
+                "group_id": response.meta['group_id'],
                 "offset": self.offset,
                 "error": self.error
             })
@@ -238,7 +227,7 @@ class VkParsePostsSpider(scrapy.Spider):
         except Error29Exception:
             self.error = 29
             self.list_errors.append({
-                "group_id": self.group_id,
+                "group_id": response.meta['group_id'],
                 "offset": self.offset,
                 "error": self.error
             })

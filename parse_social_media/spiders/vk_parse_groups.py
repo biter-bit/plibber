@@ -57,7 +57,9 @@ class VkParseGroupSpider(scrapy.Spider):
         self.token = os.getenv('ACCOUNT_TOKENS').split(',')[number_of_account - 1] # рабочий токен
         self.groups_list = []
         self.groups_parse = None
-        self.count_groups = int(os.getenv('COUNT_GROUPS'))  # кол-во групп, которые нужно обработать
+        self.start_idx_group = int(os.getenv('START_IDX_GROUP'))
+        self.end_idx_group = int(os.getenv('END_IDX_GROUP'))
+        self.count_groups = self.end_idx_group - self.start_idx_group  # кол-во групп, которые нужно обработать
         self.count_process = int(os.getenv('COUNT_PROCESS'))  # кол-во включенных процессов (аккаунтов, пауков)
         self.count_groups_spiders = int(os.getenv('COUNT_GROUPS_SPIDERS'))  # кол-во пауков на каждый процесс
         self.error = 'done'
@@ -65,12 +67,7 @@ class VkParseGroupSpider(scrapy.Spider):
 
     def start_requests(self):
         # итоговый список
-        self.groups_list = get_list_groups(
-            self.count_groups,
-            self.count_process,
-            self.number_of_groups,
-            self.count_groups_spiders
-        )
+        self.groups_list = list(range(self.start_idx_group, self.end_idx_group))
         self.groups_parse = self.groups_list[0]
         url_groups = (f'https://api.vk.com/method/groups.getById?'
                       f'access_token={self.token}&v=5.154&group_ids=1&fields=can_see_all_posts,members_count')

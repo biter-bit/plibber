@@ -128,7 +128,7 @@ def run(
     if count_process * (count_spiders*(parse_update_value+parse_group_value+parse_posts_value)) > count_accounts:
         raise Exception(f'Недостаточно рабочих аккаунтов для данной настройки')
 
-    if count_process * count_spiders > int(os.getenv('COUNT_GROUPS')):
+    if count_process * count_spiders > int(os.getenv('END_IDX_GROUP'))-int(os.getenv('START_IDX_GROUP')):
         raise Exception(f'Слишком много пауков для данного кол-ва групп. Нужно использовать максимум 1 паука на 1 группу.')
 
     if parse_group_value and parse_posts_value and parse_update_value:
