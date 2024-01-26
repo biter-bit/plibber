@@ -1,7 +1,10 @@
-COUNT_PROCESS=1 # кол-во процессов
-COUNT_GROUPS_SPIDERS=2 # кол-во пауков на один процесс
-COUNT_GROUPS=100000 # кол-во групп для парсинга
-CHECK_ACCOUNTS=True
-CHECK_PROXYS=True
-ACCOUNT_TOKENS=''
-PROXY_TOKENS=''
+COUNT_PROCESS=9 # кол-во процессов
+COUNT_GROUPS_SPIDERS=3 # кол-во групп пауков на один процесс (кол-во групп * 2)
+COUNT_GROUPS=10000 # кол-во групп для парсинга
+CHECK=True # проверять аккаунты и прокси на работоспособность или нет
+ACCOUNT_TOKENS='' # аккаунты
+PROXY_TOKENS='' # токены
+CLOSESPIDER_POST=150 # 200 || кол-во запросов закрытия паука (макс кол-во запросов на метод / кол-во получаемых данных в execute)
+GROUP_PARSE_START=1 # включить парсинг групп (1 - вкл, 0 - выкл)
+POSTS_PARSE_START=1 # включить парсинг постов (1 - вкл, 0 - выкл)
+UPDATE_PARSE_START=0 # включить парсинг обновления постов (1 - вкл, 0 - выкл)
