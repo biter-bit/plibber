@@ -6,6 +6,7 @@ from requests.exceptions import ProxyError
 import os
 import multiprocessing
 from custom_exception import Error29Exception, Error13Exception, Error6Exception
+import urllib
 
 
 def error(response):
@@ -19,24 +20,26 @@ def error(response):
             raise Error6Exception("Error 6. Too many requests per second.")
 
 
-def checker(accounts: list, proxys: list) -> tuple[list[str] | str, list[str] | str]:
-    """Добавляет работоспособные аккаунты и прокси в переменные окружения"""
+def main_checker_accounts(accounts: list) -> list[str] | str | list:
+    """Добавляет работоспособные аккаунты в переменные окружения"""
     if os.getenv("CHECK"):
         print('Проверка токенов...')
         result_accounts = request_check_tokens(accounts, True)
         list_result_accounts = len(result_accounts.split(','))
         os.environ['ACCOUNT_TOKENS'] = result_accounts
         print(f'Проверка токенов завершена. Рабочих токенов {list_result_accounts} шт.\n')
-        print("Проверка прокси...")
-        result_proxys = request_check_proxys(proxys, True)
-        list_result_proxys = len(result_proxys.split(','))
-        os.environ['PROXY_TOKENS'] = result_proxys
-        print(f'Проверка прокси завершена. Рабочих прокси {list_result_proxys} шт.\n')
-    else:
-        result_proxys = accounts
-        result_accounts = proxys
 
-    return result_accounts, result_proxys
+        # print("Проверка прокси...")
+        # result_proxys = request_check_proxys(proxys, True)
+        # list_result_proxys = len(result_proxys.split(','))
+        # os.environ['PROXY_TOKENS'] = result_proxys
+        # print(f'Проверка прокси завершена. Рабочих прокси {list_result_proxys} шт.\n')
+    else:
+        # result_proxys = proxys
+        result_accounts = accounts
+
+    return result_accounts
+    # return result_accounts, result_proxys
 
 
 def file_parse_accounts(file_path: str, return_str: bool = False) -> Union[List[str], str]:
@@ -92,22 +95,22 @@ def request_check_tokens(tokens: List[str], return_str: bool = False) -> Union[L
     return str_work_accounts if return_str else list_work_accounts
 
 
-def request_check_proxys(proxys: List[str], return_str: bool = False) -> Union[List[str], str]:
-    """Получает список прокси и проверяет их на работоспособность"""
-    list_work_proxys = []
-    for proxy in proxys:
-        try:
-            proxy_format = {
-                'http': proxy,
-                'https': proxy
-            }
-            response = requests.get('https://google.ru', proxy_format, timeout=5)
-            response.raise_for_status()
-            list_work_proxys.append(proxy)
-        except ProxyError as e:
-            print(f"Error processing proxy {proxy}: {e}")
-    str_work_accounts = ','.join(list_work_proxys)
-    return str_work_accounts if return_str else list_work_proxys
+# def request_check_proxys(proxys: List[str], return_str: bool = False) -> Union[List[str], str]:
+#     """Получает список прокси и проверяет их на работоспособность"""
+#     list_work_proxys = []
+#     for proxy in proxys:
+#         try:
+#             proxy_format = {
+#                 'http': proxy,
+#                 'https': proxy
+#             }
+#             response = requests.get('https://google.ru', proxy_format, timeout=5)
+#             response.raise_for_status()
+#             list_work_proxys.append(proxy)
+#         except ProxyError as e:
+#             print(f"Error processing proxy {proxy}: {e}")
+#     str_work_accounts = ','.join(list_work_proxys)
+#     return str_work_accounts if return_str else list_work_proxys
 
 
 def run(
