@@ -11,6 +11,13 @@ LOG_ENABLED = True
 LOG_LEVEL = "DEBUG"
 # LOG_FILE = f'{PATH_BASE}/logs/spider.log'
 
+FILES_STORE = 's3://24825ad4-baba3742-8b35-4dcd-b824-e5bcae1d54f9/files'
+IMAGES_STORE = 's3://24825ad4-baba3742-8b35-4dcd-b824-e5bcae1d54f9/photos'
+AWS_ENDPOINT_URL = 'https://s3.timeweb.cloud'
+AWS_ACCESS_KEY_ID = 'SI3PXEYPDWJK5AXJ1JQK'
+AWS_SECRET_ACCESS_KEY = '1HUe80GXLnQ2uxXEg6ijz5D6JAAJ8RCwThr3gKsr'
+AWS_REGION_NAME = 'ru-1'
+
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
@@ -74,7 +81,11 @@ EXTENSIONS = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-   "parse_social_media.pipelines.ParseSocialMediaPipeline": 300,
+    "parse_social_media.pipelines.ParseSocialMediaPipeline": 600,
+    # "parse_social_media.pipelines.ParseSocialMediaGroupsPipelines": 500,
+    # "parse_social_media.pipelines.ParseSocialMediaPostsPipelines": 400,
+    "parse_social_media.pipelines.ParseSocialMediaPhotosPipeline": 300,
+    # "parse_social_media.pipelines.ParseSocialMediaVideosPipelines": 200,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

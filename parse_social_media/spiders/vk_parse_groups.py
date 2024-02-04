@@ -52,31 +52,27 @@ class VkParseGroupSpider(scrapy.Spider):
     def __init__(self, number_of_account=None, number_of_groups=None, name=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.name = name
-        self.number_of_account = number_of_account
-        self.number_of_groups = number_of_groups
-        self.token = os.getenv('ACCOUNT_TOKENS').split(',')[number_of_account - 1] # рабочий токен
-        self.groups_list = []
-        self.groups_parse = None
-        self.start_idx_group = int(os.getenv('START_IDX_GROUP'))
-        self.end_idx_group = int(os.getenv('END_IDX_GROUP'))
-        self.count_groups = self.end_idx_group - self.start_idx_group  # кол-во групп, которые нужно обработать
-        self.count_process = int(os.getenv('COUNT_PROCESS'))  # кол-во включенных процессов (аккаунтов, пауков)
-        self.count_groups_spiders = int(os.getenv('COUNT_GROUPS_SPIDERS'))  # кол-во пауков на каждый процесс
+        # рабочий токен
+        self.token = os.getenv('ACCOUNT_TOKENS').split(',')[number_of_account - 1]
+        # итоговый список
+        self.groups_list = list(range(int(os.getenv('START_IDX_GROUP')), int(os.getenv('END_IDX_GROUP'))))
+        self.groups_parse = [None]
+        # кол-во групп, которые нужно обработать
+        self.count_groups = int(os.getenv('END_IDX_GROUP')) - int(os.getenv('START_IDX_GROUP'))
+        # кол-во включенных процессов (аккаунтов, пауков)
+        self.count_process = int(os.getenv('COUNT_PROCESS'))
+        # кол-во пауков на каждый процесс
+        self.count_groups_spiders = int(os.getenv('COUNT_GROUPS_SPIDERS'))
         self.error = 'done'
         self.list_errors = []
 
     def start_requests(self):
-        # итоговый список
-        self.groups_list = list(range(self.start_idx_group, self.end_idx_group))
-        self.groups_parse = self.groups_list[0]
         url_groups = (f'https://api.vk.com/method/groups.getById?'
                       f'access_token={self.token}&v=5.154&group_ids=1&fields=can_see_all_posts,members_count')
-
         yield scrapy.Request(url=url_groups, callback=self.parse)
 
     def parse(self, response: HtmlResponse):
         groups_data = response.json()
-
         try:
             # вызываем raise если есть ошибки 6, 13, 29
             error(groups_data)
@@ -96,42 +92,50 @@ class VkParseGroupSpider(scrapy.Spider):
             # получение групп
             for i in range(0, number_total_requests):
                 # список групп для одного из execute
-                self.groups_parse = self.groups_list[i * number_iter_groups:i * number_iter_groups + number_iter_groups]
-                vk_script = get_script_vk_parse_groups(self.groups_parse)
+                groups_parse = self.groups_list[i * number_iter_groups:i * number_iter_groups + number_iter_groups]
+                vk_script = get_script_vk_parse_groups(groups_parse)
                 url = f'https://api.vk.com/method/execute'
                 yield scrapy.FormRequest(
                     url=url,
                     method='POST',
                     callback=self.groups_preparetion,
                     formdata={'access_token': self.token, 'code': vk_script, 'v': "5.154"},
+                    meta={'groups_parse': groups_parse}
                 )
 
         except Error6Exception:
             self.error = 6
             self.list_errors.append({
-                "id_group_start": self.groups_parse[0],
-                "id_group_finish": self.groups_parse[-1],
+                "id_group_start": self.groups_list[0],
+                "id_group_finish": self.groups_parse[-1] + 1 if self.groups_parse else None,
+                "id_group_start_execute": self.groups_parse[0],
+                "id_group_finish_execute": self.groups_parse[-1] + 1 if self.groups_parse else None,
                 "error": self.error
             })
 
         except Error13Exception:
             self.error = 13
             self.list_errors.append({
-                "id_group_start": self.groups_parse[0],
-                "id_group_finish": self.groups_parse[-1],
+                "id_group_start": self.groups_list[0],
+                "id_group_finish": self.groups_parse[-1] + 1 if self.groups_parse else None,
+                "id_group_start_execute": self.groups_parse[0],
+                "id_group_finish_execute": self.groups_parse[-1] + 1 if self.groups_parse else None,
                 "error": self.error
             })
 
         except Error29Exception:
             self.error = 29
             self.list_errors.append({
-                "id_group_start": self.groups_parse[0],
-                "id_group_finish": self.groups_parse[-1],
+                "id_group_start": self.groups_list[0],
+                "id_group_finish": self.groups_parse[-1] + 1 if self.groups_parse else None,
+                "id_group_start_execute": self.groups_parse[0],
+                "id_group_finish_execute": self.groups_parse[-1] + 1 if self.groups_parse else None,
                 "error": self.error
             })
 
     def groups_preparetion(self, response: HtmlResponse):
         groups_data = response.json()
+        self.groups_parse = response.meta["groups_parse"]
 
         try:
             # вызываем raise если есть ошибки 6, 13, 29
@@ -143,27 +147,32 @@ class VkParseGroupSpider(scrapy.Spider):
         except Error6Exception:
             self.error = 6
             self.list_errors.append({
-                "id_group_start": self.groups_parse[0],
-                "id_group_finish": self.groups_parse[-1],
+                "id_group_start": self.groups_list[0],
+                "id_group_finish": self.groups_parse[-1] + 1 if self.groups_parse else None,
+                "id_group_start_execute": self.groups_parse[0],
+                "id_group_finish_execute": self.groups_parse[-1] + 1 if self.groups_parse else None,
                 "error": self.error
             })
 
         except Error13Exception:
             self.error = 13
             self.list_errors.append({
-                "id_group_start": self.groups_parse[0],
-                "id_group_finish": self.groups_parse[-1],
+                "id_group_start": self.groups_list[0],
+                "id_group_finish": self.groups_parse[-1] + 1 if self.groups_parse else None,
+                "id_group_start_execute": self.groups_parse[0],
+                "id_group_finish_execute": self.groups_parse[-1] + 1 if self.groups_parse else None,
                 "error": self.error
             })
 
         except Error29Exception:
             self.error = 29
             self.list_errors.append({
-                "id_group_start": self.groups_parse[0],
-                "id_group_finish": self.groups_parse[-1],
+                "id_group_start": self.groups_list[0],
+                "id_group_finish": self.groups_parse[-1] + 1 if self.groups_parse else None,
+                "id_group_start_execute": self.groups_parse[0],
+                "id_group_finish_execute": self.groups_parse[-1] + 1 if self.groups_parse else None,
                 "error": self.error
             })
-
 
     def close(self, reason):
         # получение текущей даты и времени
@@ -173,6 +182,15 @@ class VkParseGroupSpider(scrapy.Spider):
         # получение даты и времени через 24 часа
         new_datetime = current_datetime + timedelta(hours=24)
         formatted_new_datetime = new_datetime.strftime("%d/%m/%Y %H:%M:%S")
+
+        # if reason == "closespider_pagecount":
+        #     self.list_errors.append({
+        #         "id_group_start": self.groups_list[0],
+        #         "id_group_finish": self.groups_list[-1],
+        #         "id_group_start_execute": self.groups_parse[0],
+        #         "id_group_finish_execute": self.groups_parse[-1],
+        #         "error": self.error
+        #     })
 
         # создание словаря, который будет в файле
         date_to_save = {
@@ -190,6 +208,7 @@ class VkParseGroupSpider(scrapy.Spider):
             # Прочитать данные из существующего файла
             with open(existing_file_path, 'r') as json_file:
                 existing_data = json.load(json_file)
+            os.remove(existing_file_path)
         except json.decoder.JSONDecodeError:
             print(f"Error decoding JSON in {existing_file_path}. Creating a new empty dictionary.")
             existing_data = {}

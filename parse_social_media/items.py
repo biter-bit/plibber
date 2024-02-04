@@ -4,6 +4,7 @@
 # https://docs.scrapy.org/en/latest/topics/items.html
 
 import scrapy
+from itemloaders.processors import TakeFirst, MapCompose
 
 
 class ParseSocialMediaItem(scrapy.Item):
@@ -17,11 +18,12 @@ class ParseSocialMediaItemWall(scrapy.Item):
     group_id = scrapy.Field()
     hash_post = scrapy.Field()
     text = scrapy.Field()
-    photo = scrapy.Field()
+    content = scrapy.Field()
     marked_as_ads = scrapy.Field()
     views = scrapy.Field()
     likes = scrapy.Field()
     comments = scrapy.Field()
     reposts = scrapy.Field()
     date = scrapy.Field()
+    photo = scrapy.Field()
 

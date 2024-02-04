@@ -18,14 +18,10 @@ class VkParseUpdateSpider(scrapy.Spider):
         # рабочий токен
         self.token = os.getenv('ACCOUNT_TOKENS').split(',')[number_of_account - 1]
 
-        self.number_of_account = number_of_account
-        self.number_of_groups = number_of_groups
         self.groups_list = None
         self.error = 'done'
 
-        self.start_idx_group = int(os.getenv('START_IDX_GROUP'))
-        self.end_idx_group = int(os.getenv('END_IDX_GROUP'))
-        self.count_groups = self.end_idx_group - self.start_idx_group  # кол-во групп, которые нужно обработать
+        self.count_groups = int(os.getenv('END_IDX_GROUP')) - int(os.getenv('START_IDX_GROUP'))  # кол-во групп, которые нужно обработать
 
         # кол-во включенных процессов (аккаунтов, пауков)
         self.count_process = int(os.getenv('COUNT_PROCESS'))
@@ -33,11 +29,14 @@ class VkParseUpdateSpider(scrapy.Spider):
         self.count_groups_spiders = int(os.getenv('COUNT_GROUPS_SPIDERS'))
         self.list_errors = []
 
+        self.group = None
+
     def start_requests(self):
         # итоговый список
         self.groups_list = list(range(self.start_idx_group, self.end_idx_group))
 
         for group_id in self.groups_list:
+            self.group = group_id
             url_posts = (f'https://api.vk.com/method/wall.get?'
                          f'access_token={self.token}&owner_id={-group_id}&count=50&v=5.154')
             yield scrapy.Request(url=url_posts, callback=self.parse, meta={'group_id': group_id})
@@ -93,24 +92,21 @@ class VkParseUpdateSpider(scrapy.Spider):
                 )
 
         except Error6Exception:
-            self.error = 6
             self.list_errors.append({
                 "group_id": response.meta['group_id'],
-                "error": self.error
+                "error": 6
             })
 
         except Error13Exception:
-            self.error = 13
             self.list_errors.append({
                 "group_id": response.meta['group_id'],
-                "error": self.error
+                "error": 13
             })
 
         except Error29Exception:
-            self.error = 29
             self.list_errors.append({
                 "group_id": response.meta['group_id'],
-                "error": self.error
+                "error": 29
             })
 
     def close(self, reason):
@@ -121,6 +117,18 @@ class VkParseUpdateSpider(scrapy.Spider):
         # получение даты и времени через 24 часа
         new_datetime = current_datetime + timedelta(hours=24)
         formatted_new_datetime = new_datetime.strftime("%d/%m/%Y %H:%M:%S")
+
+        if reason == 'finish':
+            self.list_errors.append({
+                "group_id": self.group,
+                "error": 200
+            })
+
+        if reason == 'closespider_pagecount':
+            self.list_errors.append({
+                "group_id": self.group,
+                "error": 202
+            })
 
         # создание словаря, который будет в файле
         date_to_save = {
