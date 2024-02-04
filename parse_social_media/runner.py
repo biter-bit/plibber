@@ -23,9 +23,9 @@ if __name__ == "__main__":
     count_groups_spiders_in_process = int(os.getenv('COUNT_GROUPS_SPIDERS'))  # кол-во групп пауков (по 2)
     count_accounts_tokens = len(accounts.split(','))  # кол-во аккаунтов
     count_proxys = len(proxys.split(','))  # кол-во прокси
-    parse_group_value = int(os.getenv('GROUP_PARSE_START'))
-    parse_posts_value = int(os.getenv('POSTS_PARSE_START'))
-    parse_update_value = int(os.getenv('UPDATE_PARSE_START'))
+    parse_group_value = int(os.getenv('GROUP_PARSE_START'))  # вкл/выкл парсинг групп
+    parse_posts_value = int(os.getenv('POSTS_PARSE_START'))  # вкл/выкл парсинг постов
+    parse_update_value = int(os.getenv('UPDATE_PARSE_START'))  # вкл/выкл обновление постов
 
     run(
         count_proxys,

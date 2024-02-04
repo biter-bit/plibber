@@ -8,6 +8,7 @@ from parse_social_media.custom_exception import Error29Exception, Error13Excepti
 from parse_social_media.service import error
 from datetime import datetime, timedelta
 from scrapy.exceptions import CloseSpider
+from scrapy.loader import ItemLoader
 
 
 def get_script_vk_parse_posts(group_id, offset):
@@ -35,21 +36,26 @@ def get_script_vk_parse_posts(group_id, offset):
             offset: (i * 25) + {offset},
             count: 25,
         }});
-        var result = {{'post_id': response.items@.id, 'group_id': response.items@.owner_id, 'hash_post': response.items@.hash, 'text': response.items@.text, 'photo': response.items@.attachments, 'market_as_ads':  response.items@.marked_as_ads, 'views':  response.items@.views@.count, 'likes': response.items@.likes@.count, 'reposts': response.items@.reposts@.count, 'comments': response.items@.comments@.count, 'date': response.items@.date}};
-        list_response.post_id = list_response.post_id + result.post_id;
-        list_response.group_id = list_response.group_id + result.group_id;
-        list_response.hash_post = list_response.hash_post + result.hash_post;
-        list_response.reposts = list_response.reposts + result.reposts;
-        list_response.photo = list_response.photo + result.photo;
-        list_response.market_as_ads = list_response.market_as_ads + result.market_as_ads;
-        list_response.views = list_response.views + result.views;
-        list_response.likes = list_response.likes + result.likes;
-        list_response.text = list_response.text + result.text;
-        list_response.comments = list_response.comments + result.comments;
-        list_response.date = list_response.date + result.date;
-        delete response;
-        delete result;
-        i = i + 1;
+        if (response.items) {{
+            var result = {{'post_id': response.items@.id, 'group_id': response.items@.owner_id, 'hash_post': response.items@.hash, 'text': response.items@.text, 'photo': response.items@.attachments, 'market_as_ads':  response.items@.marked_as_ads, 'views':  response.items@.views@.count, 'likes': response.items@.likes@.count, 'reposts': response.items@.reposts@.count, 'comments': response.items@.comments@.count, 'date': response.items@.date}};
+            list_response.post_id = list_response.post_id + result.post_id;
+            list_response.group_id = list_response.group_id + result.group_id;
+            list_response.hash_post = list_response.hash_post + result.hash_post;
+            list_response.reposts = list_response.reposts + result.reposts;
+            list_response.photo = list_response.photo + result.photo;
+            list_response.market_as_ads = list_response.market_as_ads + result.market_as_ads;
+            list_response.views = list_response.views + result.views;
+            list_response.likes = list_response.likes + result.likes;
+            list_response.text = list_response.text + result.text;
+            list_response.comments = list_response.comments + result.comments;
+            list_response.date = list_response.date + result.date;
+            delete response;
+            delete result;
+            i = i + 1;
+        }} else {{
+            delete response;
+            i = i + 1;
+        }};
     }}
     return list_response;
     """
@@ -77,31 +83,37 @@ class VkParsePostsSpider(scrapy.Spider):
         # рабочий токен
         self.token = os.getenv('ACCOUNT_TOKENS').split(',')[number_of_account - 1]
 
-        self.number_of_account = number_of_account
-        self.number_of_groups = number_of_groups
-        self.groups_list = None
-        self.error = 'done'
+        # итоговый список
+        self.groups_list = list(range(int(os.getenv('START_IDX_GROUP')), int(os.getenv('END_IDX_GROUP'))))
+        self.group = None
 
-        self.offset = None
-
-        self.start_idx_group = int(os.getenv('START_IDX_GROUP'))
-        self.end_idx_group = int(os.getenv('END_IDX_GROUP'))
-        self.count_groups = self.end_idx_group - self.start_idx_group  # кол-во групп, которые нужно обработать
+        # кол-во групп, которые нужно обработать
+        self.count_groups = int(os.getenv('END_IDX_GROUP')) - int(os.getenv('START_IDX_GROUP'))
 
         # кол-во включенных процессов (аккаунтов, пауков)
         self.count_process = int(os.getenv('COUNT_PROCESS'))
-
         self.count_groups_spiders = int(os.getenv('COUNT_GROUPS_SPIDERS'))
+
+        self.offset = None
+        self.count_posts = None
         self.list_errors = []
+        self.error = 'done'
 
     def start_requests(self):
-        # итоговый список
-        self.groups_list = list(range(self.start_idx_group, self.end_idx_group))
-
+        offset_group = int(os.getenv('PASS_POSTS_IN_GROUPS'))
         for group_id in self.groups_list:
+            self.group = group_id
+            self.offset = None
             url_posts = (f'https://api.vk.com/method/wall.get?'
-                         f'access_token={self.token}&owner_id={-group_id}&count=1&v=5.154')
-            yield scrapy.Request(url=url_posts, callback=self.parse, meta={'group_id': group_id})
+                         f'access_token={self.token}&owner_id={-group_id}&offset={offset_group}&count=1&v=5.154')
+            yield scrapy.Request(
+                url=url_posts,
+                callback=self.parse,
+                meta={
+                    'group_id': group_id,
+                    'offset_group': offset_group
+                }
+            )
 
     def parse(self, response: HtmlResponse):
         # ответ в формате словаря
@@ -124,17 +136,26 @@ class VkParsePostsSpider(scrapy.Spider):
             # вызываем raise если есть ошибки 6, 13, 29
             error(response_json)
 
+            # проверка на наличие постов
+            if not response_json['response']['items']:
+                return
+
             group_id = response.meta['group_id']
+            # кол-во постов, которое нужно пропустить в группе
+            offset_group_start = response.meta['offset_group']
             # общее кол-во постов в группе
-            count_posts = response_json['response']['count']
+            count_posts = response_json['response']['count'] - offset_group_start
             # кол-во постов за 1 запрос execute
             count_posts_for_execute = 25 * 25  # второе число заменить
+            self.count_posts = count_posts_for_execute
             # всего execute запросов
             total_execute_requests = math.ceil(count_posts / count_posts_for_execute)
 
             for i in range(0, total_execute_requests):
-                self.offset = i * count_posts_for_execute
-                vk_script = get_script_vk_parse_posts(-group_id, self.offset)
+                self.group = group_id
+                offset_group = i * count_posts_for_execute + offset_group_start
+                self.offset = offset_group
+                vk_script = get_script_vk_parse_posts(-group_id, offset_group)
                 url = f'https://api.vk.com/method/execute'
                 yield scrapy.FormRequest(
                     url,
@@ -145,32 +166,31 @@ class VkParsePostsSpider(scrapy.Spider):
                         'v': "5.154"
                     },
                     meta={
-                        'group_id': group_id
+                        'group_id': group_id,
+                        'offset_group': offset_group,
+                        'count_posts': count_posts_for_execute
                     }
                 )
 
         except Error6Exception:
-            self.error = 6
             self.list_errors.append({
                 "group_id": response.meta['group_id'],
-                "offset": self.offset,
-                "error": self.error
+                "offset_user": int(os.getenv('PASS_POSTS_IN_GROUPS')),
+                "error": 6,
             })
 
         except Error13Exception:
-            self.error = 13
             self.list_errors.append({
                 "group_id": response.meta['group_id'],
-                "offset": self.offset,
-                "error": self.error
+                "offset_user": int(os.getenv('PASS_POSTS_IN_GROUPS')),
+                "error": 13,
             })
 
         except Error29Exception:
-            self.error = 29
             self.list_errors.append({
                 "group_id": response.meta['group_id'],
-                "offset": self.offset,
-                "error": self.error
+                "offset_user": int(os.getenv('PASS_POSTS_IN_GROUPS')),
+                "error": 29,
             })
 
     def posts_preparetion(self, response: HtmlResponse):
@@ -178,58 +198,66 @@ class VkParsePostsSpider(scrapy.Spider):
         try:
             # вызываем raise если есть ошибки 6, 13, 29
             error(wall_data)
-
             wall_response = wall_data['response']
+
             for post in range(len(wall_response['post_id'])):
-                post_id = wall_response['post_id'][post]
-                group_id = wall_response['group_id'][post]
-                hash_post = wall_response['hash_post'][post]
-                text = wall_response['text'][post]
-                photo = wall_response['photo'][post]
-                marked_as_ads = wall_response['market_as_ads'][post]
-                views = wall_response['views'][post]
-                likes = wall_response['likes'][post]
-                comments = wall_response['comments'][post]
-                reposts = wall_response['reposts'][post]
-                date = wall_response['date'][post]
-                # result_groups_data = sum(wall_data['response'], [])
                 yield ParseSocialMediaItemWall(
                     type='wall',
-                    post_id=post_id,
-                    group_id=group_id,
-                    hash_post=hash_post,
-                    text=text,
-                    photo=photo,
-                    marked_as_ads=marked_as_ads,
-                    views=views,
-                    likes=likes,
-                    comments=comments,
-                    reposts=reposts,
-                    date=date
+                    post_id=wall_response['post_id'][post],
+                    group_id=wall_response['group_id'][post],
+                    hash_post=wall_response['hash_post'][post],
+                    text=wall_response['text'][post],
+                    content=wall_response['photo'][post],
+                    marked_as_ads=wall_response['market_as_ads'][post],
+                    views=wall_response['views'][post],
+                    likes=wall_response['likes'][post],
+                    comments=wall_response['comments'][post],
+                    reposts=wall_response['reposts'][post],
+                    date=wall_response['date'][post]
                 )
 
+            # for post in range(len(wall_response['post_id'])):
+            #     loader = ItemLoader(item=ParseSocialMediaItemWall(), response=response)
+            #     loader.add_value('post_id', wall_response['post_id'][post])
+            #     loader.add_value('group_id', wall_response['group_id'][post])
+            #     loader.add_value('hash_post', wall_response['hash_post'][post])
+            #     loader.add_value('text', wall_response['text'][post])
+            #     loader.add_value('content', wall_response['photo'][post])
+            #     loader.add_value('marked_as_ads', wall_response['market_as_ads'][post])
+            #     loader.add_value('views', wall_response['views'][post])
+            #     loader.add_value('likes', wall_response['likes'][post])
+            #     loader.add_value('comments', wall_response['comments'][post])
+            #     loader.add_value('reposts', wall_response['reposts'][post])
+            #     loader.add_value('date', wall_response['date'][post])
+            #     loader.add_value('photo', None)
+            #     loader.add_value('type', 'wall')
+            #     yield loader.load_item()
+
         except Error6Exception:
-            self.error = 6
             self.list_errors.append({
                 "group_id": response.meta['group_id'],
-                "offset": self.offset,
-                "error": self.error
+                "offset_user": int(os.getenv('PASS_POSTS_IN_GROUPS')),
+                "offset": response.meta['offset_group'],
+                'count_posts': response.meta['count_posts'],
+                "error": 6,
             })
 
         except Error13Exception:
-            self.error = 13
             self.list_errors.append({
                 "group_id": response.meta['group_id'],
-                "offset": self.offset,
-                "error": self.error
+                "offset_user": int(os.getenv('PASS_POSTS_IN_GROUPS')),
+                "offset": response.meta['offset_group'],
+                'count_posts': response.meta['count_posts'],
+                "error": 13,
             })
 
         except Error29Exception:
-            self.error = 29
             self.list_errors.append({
                 "group_id": response.meta['group_id'],
-                "offset": self.offset,
-                "error": self.error
+                "offset_user": int(os.getenv('PASS_POSTS_IN_GROUPS')),
+                "offset": response.meta['offset_group'],
+                'count_posts': response.meta['count_posts'],
+                "error": 29,
             })
 
     def close(self, reason):
@@ -240,6 +268,24 @@ class VkParsePostsSpider(scrapy.Spider):
         # получение даты и времени через 24 часа
         new_datetime = current_datetime + timedelta(hours=24)
         formatted_new_datetime = new_datetime.strftime("%d/%m/%Y %H:%M:%S")
+
+        if reason == 'closespider_pagecount':
+            self.list_errors.append({
+                "group_id": self.group,
+                "offset_user": int(os.getenv('PASS_POSTS_IN_GROUPS')),
+                "offset": self.offset,
+                'count_posts': self.count_posts,
+                "error": 202,
+            })
+
+        if reason == 'finish':
+            self.list_errors.append({
+                "group_id": self.group,
+                "offset_user": int(os.getenv('PASS_POSTS_IN_GROUPS')),
+                "offset": self.offset,
+                'count_posts': self.count_posts,
+                "error": 200,
+            })
 
         # создание словаря, который будет в файле
         date_to_save = {

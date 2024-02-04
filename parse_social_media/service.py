@@ -101,7 +101,7 @@ def request_check_proxys(proxys: List[str], return_str: bool = False) -> Union[L
                 'http': proxy,
                 'https': proxy
             }
-            response = requests.get('https://google.ru', proxy_format)
+            response = requests.get('https://google.ru', proxy_format, timeout=5)
             response.raise_for_status()
             list_work_proxys.append(proxy)
         except ProxyError as e:
