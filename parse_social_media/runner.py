@@ -2,8 +2,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from service import main_checker_accounts, file_parse_accounts, file_parse_proxy, run
-from checker_proxy import main_checker_proxy
+from service import main_checker_accounts, file_parse_accounts, main_checker_proxy, run
 import os
 from parse_social_media.spiders.vk_parse_groups import VkParseGroupSpider
 from parse_social_media.spiders.vk_parse_posts import VkParsePostsSpider
@@ -13,12 +12,17 @@ from parse_social_media.settings import PATH_BASE
 if __name__ == "__main__":
 
     # получение всех аккаунтов/прокси и проверка их на работоспособность
-    result_accounts = file_parse_accounts(f'{PATH_BASE}/data/accounts_data.txt')
-    accounts = main_checker_accounts(result_accounts)
     proxys = main_checker_proxy(
         f'{PATH_BASE}/data/proxys.txt',
         f'{PATH_BASE}/data/work_proxys.txt',
         f'{PATH_BASE}/data/not_work_proxys.txt',
+        True
+    )
+    accounts = main_checker_accounts(
+        f'{PATH_BASE}/data/accounts_data.txt',
+        proxys,
+        f'{PATH_BASE}/data/work_accounts.txt',
+        f'{PATH_BASE}/data/not_work_accounts.txt',
         True
     )
 

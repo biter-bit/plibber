@@ -11,12 +11,15 @@ LOG_ENABLED = True
 LOG_LEVEL = "DEBUG"
 # LOG_FILE = f'{PATH_BASE}/logs/spider.log'
 
-FILES_STORE = 's3://24825ad4-baba3742-8b35-4dcd-b824-e5bcae1d54f9/files'
-IMAGES_STORE = 's3://24825ad4-baba3742-8b35-4dcd-b824-e5bcae1d54f9/photos'
+FILES_STORE = 's3://24825ad4-e2369fbe-f825-4ba9-9c6e-f9de1573149f/files'
+IMAGES_STORE = 's3://24825ad4-e2369fbe-f825-4ba9-9c6e-f9de1573149f/photos'
 AWS_ENDPOINT_URL = 'https://s3.timeweb.cloud'
 AWS_ACCESS_KEY_ID = 'SI3PXEYPDWJK5AXJ1JQK'
 AWS_SECRET_ACCESS_KEY = '1HUe80GXLnQ2uxXEg6ijz5D6JAAJ8RCwThr3gKsr'
 AWS_REGION_NAME = 'ru-1'
+
+#  размер сжатия картинок (от 1 до 100)
+IMAGES_JPEG_QUALITY = 30
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 

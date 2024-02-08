@@ -7,6 +7,7 @@ import math
 from parse_social_media.custom_exception import Error29Exception, Error13Exception, Error6Exception
 from parse_social_media.service import error
 from datetime import datetime, timedelta
+from parse_social_media.spiders.vk_parse_groups import get_list_groups
 from scrapy.exceptions import CloseSpider
 from scrapy.loader import ItemLoader
 
@@ -62,17 +63,6 @@ def get_script_vk_parse_posts(group_id, offset):
     return vk_script.replace('\n', ' ')
 
 
-def get_list_groups(count_groups, count_process, number_of_group, count_groups_spiders):
-    """Возвращает список групп для указанного номера паука"""
-
-    # индекс последнего элемента
-    ending_position = count_groups // count_process // count_groups_spiders * number_of_group + 1
-    # индекс первого элемента
-    starting_position = ending_position - count_groups // count_process // count_groups_spiders
-    groups_list = list(range(starting_position, ending_position))
-    return groups_list
-
-
 class VkParsePostsSpider(scrapy.Spider):
     name = "vk_parse_posts_1"
 
@@ -84,7 +74,7 @@ class VkParsePostsSpider(scrapy.Spider):
         self.token = os.getenv('ACCOUNT_TOKENS').split(',')[number_of_account - 1]
 
         # итоговый список
-        self.groups_list = list(range(int(os.getenv('START_IDX_GROUP')), int(os.getenv('END_IDX_GROUP'))))
+        # self.groups_list = list(range(int(os.getenv('START_IDX_GROUP')), int(os.getenv('END_IDX_GROUP'))))
         self.group = None
 
         # кол-во групп, которые нужно обработать
@@ -98,6 +88,15 @@ class VkParsePostsSpider(scrapy.Spider):
         self.count_posts = None
         self.list_errors = []
         self.error = 'done'
+
+        # итоговый список
+        self.groups_list = get_list_groups(
+            int(os.getenv('START_IDX_GROUP')),
+            int(os.getenv('END_IDX_GROUP')),
+            self.count_groups_spiders,
+            self.count_process,
+            number_of_groups
+        )
 
     def start_requests(self):
         offset_group = int(os.getenv('PASS_POSTS_IN_GROUPS'))
@@ -193,6 +192,13 @@ class VkParsePostsSpider(scrapy.Spider):
                 "error": 29,
             })
 
+        except Exception as e:
+            self.list_errors.append({
+                "group_id": response.meta['group_id'],
+                "offset_user": int(os.getenv('PASS_POSTS_IN_GROUPS')),
+                "error": 500,
+            })
+
     def posts_preparetion(self, response: HtmlResponse):
         wall_data = json.loads(response.text)
         try:
@@ -258,6 +264,15 @@ class VkParsePostsSpider(scrapy.Spider):
                 "offset": response.meta['offset_group'],
                 'count_posts': response.meta['count_posts'],
                 "error": 29,
+            })
+
+        except Exception as e:
+            self.list_errors.append({
+                "group_id": response.meta['group_id'],
+                "offset_user": int(os.getenv('PASS_POSTS_IN_GROUPS')),
+                "offset": response.meta['offset_group'],
+                'count_posts': response.meta['count_posts'],
+                "error": 500,
             })
 
     def close(self, reason):

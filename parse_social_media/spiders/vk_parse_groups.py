@@ -26,6 +26,7 @@ def get_script_vk_parse_groups(groups_id_list_vk_parse):
             var groups_str = groups_id_list.slice(start_idx, end_idx);
             var response = API.groups.getById({{
                 group_ids: groups_str,
+                fields: "members_count,can_see_all_posts",
             }});
             list_response.push(response.groups);
             i = i + 1;
@@ -36,14 +37,24 @@ def get_script_vk_parse_groups(groups_id_list_vk_parse):
     return vk_script.replace('\n', ' ')
 
 
-def get_list_groups(count_groups, count_process, number_of_group, count_groups_spiders):
+def get_list_groups(start_idx, finish_idx, count_spiders, count_process, number_group):
     """Возвращает список групп для указанного номера паука"""
-    # индекс последнего элемента
-    ending_position = count_groups // count_process // count_groups_spiders * number_of_group + 1
-    # индекс первого элемента
-    starting_position = ending_position - count_groups // count_process // count_groups_spiders
-    groups_list = list(range(starting_position, ending_position))
-    return groups_list
+    # кол-во обрабатываемых групп всего
+    all_count_groups = finish_idx - start_idx
+
+    # кол-во групп для каждого паука в запущенной сессии
+    groups_count_for_one = math.ceil(all_count_groups/(count_spiders*count_process))
+
+    # итоговый номер последней группы в списке
+    result_finish_idx = start_idx+(number_group*groups_count_for_one)
+
+    # итоговый номер начальной группы в списке
+    result_start_idx = result_finish_idx - groups_count_for_one
+
+    # список групп для данного паука
+    result_list = list(range(result_start_idx, result_finish_idx))
+
+    return result_list
 
 
 class VkParseGroupSpider(scrapy.Spider):
@@ -54,8 +65,8 @@ class VkParseGroupSpider(scrapy.Spider):
         self.name = name
         # рабочий токен
         self.token = os.getenv('ACCOUNT_TOKENS').split(',')[number_of_account - 1]
-        # итоговый список
-        self.groups_list = list(range(int(os.getenv('START_IDX_GROUP')), int(os.getenv('END_IDX_GROUP'))))
+
+        # self.groups_list = list(range(int(os.getenv('START_IDX_GROUP')), int(os.getenv('END_IDX_GROUP'))))
         self.groups_parse = [None]
         # кол-во групп, которые нужно обработать
         self.count_groups = int(os.getenv('END_IDX_GROUP')) - int(os.getenv('START_IDX_GROUP'))
@@ -65,6 +76,15 @@ class VkParseGroupSpider(scrapy.Spider):
         self.count_groups_spiders = int(os.getenv('COUNT_GROUPS_SPIDERS'))
         self.error = 'done'
         self.list_errors = []
+
+        # итоговый список
+        self.groups_list = get_list_groups(
+            int(os.getenv('START_IDX_GROUP')),
+            int(os.getenv('END_IDX_GROUP')),
+            self.count_groups_spiders,
+            self.count_process,
+            number_of_groups
+        )
 
     def start_requests(self):
         url_groups = (f'https://api.vk.com/method/groups.getById?'
@@ -133,6 +153,16 @@ class VkParseGroupSpider(scrapy.Spider):
                 "error": self.error
             })
 
+        except Exception as e:
+            self.error = 500
+            self.list_errors.append({
+                "id_group_start": self.groups_list[0],
+                "id_group_finish": self.groups_parse[-1] + 1 if self.groups_parse else None,
+                "id_group_start_execute": self.groups_parse[0],
+                "id_group_finish_execute": self.groups_parse[-1] + 1 if self.groups_parse else None,
+                "error": self.error
+            })
+
     def groups_preparetion(self, response: HtmlResponse):
         groups_data = response.json()
         self.groups_parse = response.meta["groups_parse"]
@@ -166,6 +196,16 @@ class VkParseGroupSpider(scrapy.Spider):
 
         except Error29Exception:
             self.error = 29
+            self.list_errors.append({
+                "id_group_start": self.groups_list[0],
+                "id_group_finish": self.groups_parse[-1] + 1 if self.groups_parse else None,
+                "id_group_start_execute": self.groups_parse[0],
+                "id_group_finish_execute": self.groups_parse[-1] + 1 if self.groups_parse else None,
+                "error": self.error
+            })
+
+        except Exception as e:
+            self.error = 500
             self.list_errors.append({
                 "id_group_start": self.groups_list[0],
                 "id_group_finish": self.groups_parse[-1] + 1 if self.groups_parse else None,
