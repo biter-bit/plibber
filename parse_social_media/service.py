@@ -1,3 +1,5 @@
+import random
+
 import requests
 from scrapy.utils.project import get_project_settings
 from scrapy.crawler import CrawlerProcess
@@ -7,6 +9,10 @@ import os
 import multiprocessing
 from custom_exception import Error29Exception, Error13Exception, Error6Exception
 import urllib
+import socket
+import threading
+from requests.exceptions import RequestException
+from parse_social_media.settings import PATH_BASE
 
 
 def error(response):
@@ -20,26 +26,88 @@ def error(response):
             raise Error6Exception("Error 6. Too many requests per second.")
 
 
-def main_checker_accounts(accounts: list) -> list[str] | str | list:
-    """Добавляет работоспособные аккаунты в переменные окружения"""
+def save_in_files(file_work, file_not_work, working, not_working):
+    """Сохраняет рабочие и не рабочие прокси/аккаунты в файлы"""
+    for file_ in (file_work, file_not_work):
+        try:
+            os.remove(file_)
+            # print(f"File '{file_}' deleted.")
+        except FileNotFoundError:
+            pass
+            # print(f"File '{file_}' not found.")
+        with open(file_, "w") as file:
+            if file_ == file_work:
+                for i in working:
+                    file.write(f'{i}\n')
+            elif file_ == file_not_work:
+                for i in not_working:
+                    file.write(f'{i}\n')
+    return 'Ok'
+
+
+def check_proxy(proxy_full, work_proxy, not_work_proxy):
+    """Проверяет работоспособость одного прокси"""
+    try:
+        proxy_format = {
+            'http': proxy_full,
+            'https': proxy_full
+        }
+        response = requests.get(url='https://api64.ipify.org?format=json', proxies=proxy_format, timeout=5)
+        response.raise_for_status()
+
+        # print(f"Proxy {proxy_full} is working with credentials")
+        work_proxy.append(proxy_full[7:])
+    except RequestException as e:
+        # print(f"Proxy {proxy_full} is not working with credentials")
+        not_work_proxy.append(proxy_full[7:])
+
+
+def file_parse_proxy(file_path: str, return_str: bool = False) -> Union[List[str], str]:
+    """
+    Возвращает список или строку прокси из файла. Формат файла должен быть - login:password@ip:port\n.
+
+        Параметры:
+            file_path (str): путь к файлу с информацией о прокси
+            return_str (bool): тип возвращаемого контента (по умолчанию False).
+
+        Возвращает:
+            Union[List[str], str, None]: ваша ожидаемая строка, список строк или None
+    """
+    with open(file_path, 'r') as file:
+        list_proxys = []
+        for proxy_line in file:
+            list_proxys.append(proxy_line.strip())
+        str_proxys = ','.join(list_proxys)
+    return str_proxys if return_str else list_proxys
+
+
+def main_checker_proxy(file_read, file_work_proxy, file_not_work_proxy, return_str=False):
+    """Проверяет работоспособность прокси"""
+    list_proxies = file_parse_proxy(file_read)
     if os.getenv("CHECK"):
-        print('Проверка токенов...')
-        result_accounts = request_check_tokens(accounts, True)
-        list_result_accounts = len(result_accounts.split(','))
-        os.environ['ACCOUNT_TOKENS'] = result_accounts
-        print(f'Проверка токенов завершена. Рабочих токенов {list_result_accounts} шт.\n')
+        print("Проверка прокси...")
+        work_proxy = []
+        not_work_proxy = []
+        threads = []
+        for proxy_line in list_proxies:
+            proxy_full = f'http://{proxy_line}'
+            thread = threading.Thread(target=check_proxy,
+                                      args=(proxy_full, work_proxy, not_work_proxy))
+            thread.start()
+            threads.append(thread)
 
-        # print("Проверка прокси...")
-        # result_proxys = request_check_proxys(proxys, True)
-        # list_result_proxys = len(result_proxys.split(','))
-        # os.environ['PROXY_TOKENS'] = result_proxys
-        # print(f'Проверка прокси завершена. Рабочих прокси {list_result_proxys} шт.\n')
+        for thread in threads:
+            thread.join()
+
+        save_in_files(file_work_proxy, file_not_work_proxy, work_proxy, not_work_proxy)
+        str_proxys = ','.join(work_proxy)
+        os.environ['PROXY_TOKENS'] = str_proxys
+        print(f'Проверка прокси завершена. Рабочих прокси {len(work_proxy)} шт.\n')
+        return str_proxys if return_str else work_proxy
     else:
-        # result_proxys = proxys
-        result_accounts = accounts
-
-    return result_accounts
-    # return result_accounts, result_proxys
+        print("Прокси не проверены, так как настройка выключена")
+        str_proxys = ','.join(list_proxies)
+        return str_proxys if return_str else list_proxies
 
 
 def file_parse_accounts(file_path: str, return_str: bool = False) -> Union[List[str], str]:
@@ -62,55 +130,57 @@ def file_parse_accounts(file_path: str, return_str: bool = False) -> Union[List[
     return str_accounts if return_str else list_accounts
 
 
-def file_parse_proxy(file_path: str, return_str: bool = False) -> Union[List[str], str]:
-    """
-    Возвращает список или строку прокси из файла. Формат файла должен быть - login:password@ip:port\n.
-
-        Параметры:
-            file_path (str): путь к файлу с информацией о прокси
-            return_str (bool): тип возвращаемого контента (по умолчанию False).
-
-        Возвращает:
-            Union[List[str], str, None]: ваша ожидаемая строка, список строк или None
-    """
-    with open(file_path, 'r') as file:
-        list_proxys = []
-        for proxy_line in file:
-            list_proxys.append(proxy_line.strip())
-        str_proxys = ','.join(list_proxys)
-    return str_proxys if return_str else list_proxys
-
-
-def request_check_tokens(tokens: List[str], return_str: bool = False) -> Union[List[str], str]:
-    """Получает список токенов vk и проверяет их на работоспособность"""
-    list_work_accounts = []
-    for token in tokens:
-        try:
-            response = requests.get('https://api.vk.com/method/groups.getById?group_ids=1&v=5.154&access_token=' + token)
-            if 'error' not in response.text:
-                list_work_accounts.append(token)
-        except Exception as e:
-            print(f"Error processing token {token}: {e}")
-    str_work_accounts = ','.join(list_work_accounts)
-    return str_work_accounts if return_str else list_work_accounts
+def check_account(proxy_full, token, work_account, not_work_account):
+    """Проверяет работоспособость одного аккаунта"""
+    try:
+        proxy_format = {
+            'http': proxy_full,
+            'https': proxy_full
+        }
+        response = requests.get(
+            url='https://api.vk.com/method/groups.getById?group_ids=1&v=5.154&access_token=' + token,
+            proxies=proxy_format,
+            timeout=5
+        )
+        if 'error' not in response.text:
+            work_account.append(token)
+        response.raise_for_status()
+    except RequestException as e:
+        not_work_account.append(token)
+        print(f"Error processing token {token}: {e}")
+    except Exception as e:
+        not_work_account.append(token)
+        print(f"Error processing token {token}: {e}")
 
 
-# def request_check_proxys(proxys: List[str], return_str: bool = False) -> Union[List[str], str]:
-#     """Получает список прокси и проверяет их на работоспособность"""
-#     list_work_proxys = []
-#     for proxy in proxys:
-#         try:
-#             proxy_format = {
-#                 'http': proxy,
-#                 'https': proxy
-#             }
-#             response = requests.get('https://google.ru', proxy_format, timeout=5)
-#             response.raise_for_status()
-#             list_work_proxys.append(proxy)
-#         except ProxyError as e:
-#             print(f"Error processing proxy {proxy}: {e}")
-#     str_work_accounts = ','.join(list_work_proxys)
-#     return str_work_accounts if return_str else list_work_proxys
+def main_checker_accounts(accounts_path: str, proxies: str, name_file_work, name_file_not_work, return_str=False) -> list[str] | str | list:
+    """Проверяет работоспособность аккаунтов (токенов)"""
+    accounts_list = file_parse_accounts(accounts_path)
+    if os.getenv("CHECK"):
+        print('Проверка токенов...')
+        list_work_accounts = []
+        list_not_work_accounts = []
+        threads = []
+        for account in accounts_list:
+            proxies_list = proxies.split(',')
+            proxy_full = f'http://{random.choice(proxies_list)}'
+            thread = threading.Thread(target=check_account,
+                                      args=(proxy_full, account, list_work_accounts, list_not_work_accounts))
+            thread.start()
+            threads.append(thread)
+
+        for thread in threads:
+            thread.join()
+
+        save_in_files(name_file_work, name_file_not_work, list_work_accounts, list_not_work_accounts)
+        str_accounts = ','.join(list_work_accounts)
+        os.environ['ACCOUNT_TOKENS'] = str_accounts
+        print(f'Проверка токенов завершена. Рабочих токенов {len(list_work_accounts)} шт.\n')
+        return str_accounts if return_str else list_work_accounts
+    else:
+        print("Аккаунты не проверены, так как настройка выключена")
+        str_proxys = ','.join(accounts_list)
+        return str_proxys if return_str else accounts_list
 
 
 def run(
@@ -125,17 +195,18 @@ def run(
     # список запущенных процессы
     processes = []
 
-    if count_proxys < count_accounts:
+    if count_proxys < count_accounts and count_proxys < count_process * count_spiders:
         raise Exception(f'Недостаточно прокси для всех аккаунтов. Минимум 1 прокси на 1 аккаунт')
 
     if count_process * (count_spiders*(parse_update_value+parse_group_value+parse_posts_value)) > count_accounts:
         raise Exception(f'Недостаточно рабочих аккаунтов для данной настройки')
 
     if count_process * count_spiders > int(os.getenv('END_IDX_GROUP'))-int(os.getenv('START_IDX_GROUP')):
-        raise Exception(f'Слишком много пауков для данного кол-ва групп. Нужно использовать максимум 1 паука на 1 группу.')
+        raise Exception(f'Слишком много пауков для данного кол-ва групп. Нужно использовать максимум 1 паука на 1 '
+                        f'группу.')
 
-    if parse_group_value and parse_posts_value and parse_update_value:
-        raise Exception(f'Нельзя включать сразу обновление и парсинг постов.')
+    if parse_update_value and (parse_posts_value or parse_group_value):
+        raise Exception(f'Нельзя включать сразу обновление и парсинг постов/групп.')
 
     # запуск процессов (пауков)
     for num_process in range(0, count_process):
@@ -180,7 +251,10 @@ def start_project(spiders, num_process, count_groups_spiders, parse_group_value,
         custom_settings_post = {
             'CONCURRENT_REQUESTS': 3,
             'DOWNLOAD_DELAY': 1.5,
-            'ROTATING_PROXY_LIST': [os.getenv('PROXY_TOKENS').split(',')[i+1]],
+            'ROTATING_PROXY_LIST': [
+                os.getenv('PROXY_TOKENS').split(',')[i+1]
+                if parse_group_value and parse_posts_value
+                else os.getenv('PROXY_TOKENS').split(',')[i]],
             'CLOSESPIDER_PAGECOUNT': os.getenv('CLOSESPIDER_POST')
         }
 
@@ -191,7 +265,7 @@ def start_project(spiders, num_process, count_groups_spiders, parse_group_value,
         custom_settings_update = {
             'CONCURRENT_REQUESTS': 3,
             'DOWNLOAD_DELAY': 1.5,
-            'ROTATING_PROXY_LIST': [os.getenv('PROXY_TOKENS').split(',')[i+1]],
+            'ROTATING_PROXY_LIST': [os.getenv('PROXY_TOKENS').split(',')[i]],
             'CLOSESPIDER_PAGECOUNT': os.getenv('CLOSESPIDER_POST')
         }
 
@@ -201,8 +275,12 @@ def start_project(spiders, num_process, count_groups_spiders, parse_group_value,
 
         if parse_group_value:
             process.crawl(spider_group, number_of_account=2*i+1, number_of_groups=i+1, name=f'vk_parse_group_{i+1}')
-        if parse_posts_value:
-            process.crawl(spider_post, number_of_account=2*i+2, number_of_groups=i+1, name=f'vk_parse_posts_{i+2}')
+            if parse_posts_value:
+                process.crawl(spider_post, number_of_account=2 * i + 2, number_of_groups=i + 1,
+                              name=f'vk_parse_posts_{i + 2}')
+        if parse_posts_value and not parse_group_value:
+            process.crawl(spider_post, number_of_account=2 * i + 1, number_of_groups=i + 1,
+                          name=f'vk_parse_posts_{i + 1}')
         if parse_update_value:
             process.crawl(spider_update, number_of_account=i+1, number_of_groups=i+1, name=f'vk_parse_posts_{i+2}')
 

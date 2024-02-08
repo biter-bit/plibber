@@ -2,10 +2,11 @@ import scrapy
 from scrapy.http import HtmlResponse
 import os
 import json
-from parse_social_media.items import ParseSocialMediaItemWall
+from parse_social_media.items import ParseSocialMediaItemWall, ParseSocialMediaItem
 from parse_social_media.custom_exception import Error29Exception, Error13Exception, Error6Exception
 from parse_social_media.service import error
 from datetime import datetime, timedelta
+from parse_social_media.spiders.vk_parse_posts import get_list_groups
 
 
 class VkParseUpdateSpider(scrapy.Spider):
@@ -18,7 +19,6 @@ class VkParseUpdateSpider(scrapy.Spider):
         # рабочий токен
         self.token = os.getenv('ACCOUNT_TOKENS').split(',')[number_of_account - 1]
 
-        self.groups_list = None
         self.error = 'done'
 
         self.count_groups = int(os.getenv('END_IDX_GROUP')) - int(os.getenv('START_IDX_GROUP'))  # кол-во групп, которые нужно обработать
@@ -31,17 +31,35 @@ class VkParseUpdateSpider(scrapy.Spider):
 
         self.group = None
 
-    def start_requests(self):
         # итоговый список
-        self.groups_list = list(range(self.start_idx_group, self.end_idx_group))
+        self.groups_list = get_list_groups(
+            int(os.getenv('START_IDX_GROUP')),
+            int(os.getenv('END_IDX_GROUP')),
+            self.count_groups_spiders,
+            self.count_process,
+            number_of_groups
+        )
+
+    def start_requests(self):
 
         for group_id in self.groups_list:
             self.group = group_id
             url_posts = (f'https://api.vk.com/method/wall.get?'
                          f'access_token={self.token}&owner_id={-group_id}&count=50&v=5.154')
-            yield scrapy.Request(url=url_posts, callback=self.parse, meta={'group_id': group_id})
+            yield scrapy.Request(url=url_posts, callback=self.parse, meta={'group_id': group_id, 'update_group': True})
 
     def parse(self, response: HtmlResponse):
+        update_group = response.meta['update_group']
+        if update_group:
+            response.meta['update_group'] = False
+            group = response.meta['group_id']
+            url_groups = (f'https://api.vk.com/method/groups.getById?'
+                          f'access_token={self.token}&v=5.154&group_ids={group}&fields=can_see_all_posts,members_count')
+            yield response.follow(
+                url=url_groups,
+                callback=self.parse_group,
+            )
+
         # ответ в формате словаря
         response_json = response.json()
 
@@ -65,7 +83,7 @@ class VkParseUpdateSpider(scrapy.Spider):
             wall_response = response_json['response']['items']
             for post in wall_response:
                 post_id = post['id']
-                group_id = post['owner_id']
+                group_id = abs(post['owner_id'])
                 hash_post = post['hash']
                 text = post['text']
                 photo = post['attachments']
@@ -77,7 +95,7 @@ class VkParseUpdateSpider(scrapy.Spider):
                 date = post['date']
                 # result_groups_data = sum(wall_data['response'], [])
                 yield ParseSocialMediaItemWall(
-                    type='update',
+                    type='update_wall',
                     post_id=post_id,
                     group_id=group_id,
                     hash_post=hash_post,
@@ -107,6 +125,43 @@ class VkParseUpdateSpider(scrapy.Spider):
             self.list_errors.append({
                 "group_id": response.meta['group_id'],
                 "error": 29
+            })
+
+        except Exception as e:
+            self.list_errors.append({
+                "group_id": response.meta['group_id'],
+                "error": 500
+            })
+
+    def parse_group(self, response: HtmlResponse):
+        try:
+            content_group = response.json()['response']['groups'][0]
+            yield ParseSocialMediaItem(
+                type='update_group',
+                data=content_group
+            )
+        except Error6Exception:
+            self.list_errors.append({
+                "group_id": response.meta['group_id'],
+                "error": 6
+            })
+
+        except Error13Exception:
+            self.list_errors.append({
+                "group_id": response.meta['group_id'],
+                "error": 13
+            })
+
+        except Error29Exception:
+            self.list_errors.append({
+                "group_id": response.meta['group_id'],
+                "error": 29
+            })
+
+        except Exception as e:
+            self.list_errors.append({
+                "group_id": response.meta['group_id'],
+                "error": 500
             })
 
     def close(self, reason):
