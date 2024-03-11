@@ -21,7 +21,7 @@ AWS_REGION_NAME = 'ru-1'
 #  размер сжатия картинок (от 1 до 100)
 IMAGES_JPEG_QUALITY = 30
 
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = "parse_social_media (+http://www.yourdomain.com)"

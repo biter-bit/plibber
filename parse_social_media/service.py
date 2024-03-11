@@ -273,15 +273,14 @@ def start_project(spiders, num_process, count_groups_spiders, parse_group_value,
         spider_update.settings = get_project_settings().copy()
         spider_update.settings.update(custom_settings_update)
 
-        if parse_group_value:
+        if parse_group_value and parse_posts_value:
+            process.crawl(spider_post, number_of_account=2*i+2, number_of_groups=i+1, name=f'vk_parse_posts_{i+1}')
             process.crawl(spider_group, number_of_account=2*i+1, number_of_groups=i+1, name=f'vk_parse_group_{i+1}')
-            if parse_posts_value:
-                process.crawl(spider_post, number_of_account=2 * i + 2, number_of_groups=i + 1,
-                              name=f'vk_parse_posts_{i + 2}')
+        if parse_group_value and not parse_posts_value:
+            process.crawl(spider_group, number_of_account=i+1, number_of_groups=i+1, name=f'vk_parse_group_{i+1}')
         if parse_posts_value and not parse_group_value:
-            process.crawl(spider_post, number_of_account=2 * i + 1, number_of_groups=i + 1,
-                          name=f'vk_parse_posts_{i + 1}')
+            process.crawl(spider_post, number_of_account=i+1, number_of_groups=i+1, name=f'vk_parse_posts_{i + 1}')
         if parse_update_value:
-            process.crawl(spider_update, number_of_account=i+1, number_of_groups=i+1, name=f'vk_parse_posts_{i+2}')
+            process.crawl(spider_update, number_of_account=i+1, number_of_groups=i+1, name=f'vk_parse_update_{i+1}')
 
     process.start()

@@ -30,6 +30,7 @@ class ParseSocialMediaPipeline:
             # обновляем имя, кол-во подписчиков, аватарка группы
             collections_item = self.mongo_base['vk_parse_groups']
             filter_group = {"id": item['data']['id']}
+
             update_data = {
                 "$set": {
                     "members_count": item['data']['members_count'],
@@ -90,8 +91,7 @@ class ParseSocialMediaPhotosPipeline(ImagesPipeline):
                 if item['content']:
                     for file in item['content']:
                         cat = (
-                            "posted_photo", "graffiti", "video", "photo", "album", "doc", "link", "poll",
-                            "market", "market_album", "photos_list", "app", "sticker", "pretty_cards"
+                            "posted_photo", "video", "photo", "album", "doc", "link", "market", "market_album"
                         )
                         # получаем контент с типом photo
                         if file["type"] in cat:
@@ -100,9 +100,6 @@ class ParseSocialMediaPhotosPipeline(ImagesPipeline):
                                 if file["type"] == "posted_photo" and "photo_604" in file["posted_photo"]:
                                     # картинка поста (устаревший формат)
                                     url_photo = file["posted_photo"]['photo_604']
-                                elif file["type"] == "graffiti" and "photo_604" in file["graffiti"]:
-                                    # картинка графити (устаревший формат)
-                                    url_photo = file["graffiti"]["photo_604"] # 586
                                 elif file["type"] == "video" and "image" in file["video"]:
                                     # получаем url обложки видео
                                     big_photo = max(file['video']['image'], key=lambda x: x['width'])
@@ -121,19 +118,9 @@ class ParseSocialMediaPhotosPipeline(ImagesPipeline):
                                 elif file["type"] == "link" and "photo" in file["link"]:
                                     big_photo = max(file['link']['photo']['sizes'], key=lambda x: x['width'])
                                     url_photo = big_photo['url']
-                                elif file["type"] == "app" and "photo_604" in file["app"]:
-                                    # контент приложений (устаревший формат)
-                                    url_photo = file['app']['photo_604']
-                                elif file["type"] == "poll" and "photo" in file['poll']:
-                                    # картинка фона опроса
-                                    # if "background" in file['poll']:
-                                    #     big_photo = max(file['poll']['background']['images'], key=lambda x: x['width'])
-                                    #     url_photo = big_photo['url']
-                                    big_photo = max(file['poll']['photo']['images'], key=lambda x: x['width'])
-                                    url_photo = big_photo['url']
-                                elif file["type"] == "photos_list":
-                                    # больше 10 картинок (список)
-                                    pass
+                                # elif file["type"] == "photos_list":
+                                #     # больше 10 картинок (список)
+                                #     pass
                                 elif file["type"] == "market" and 'thumb_photo' in file['market']:
                                     # картинка обложки товаров и картинки товаров
                                     url_photo = file['market']['thumb_photo']
@@ -143,10 +130,7 @@ class ParseSocialMediaPhotosPipeline(ImagesPipeline):
                                     # картинка обложки альбома
                                     big_photo = max(file['market_album']['photo']['sizes'], key=lambda x: x['width'])
                                     url_photo = big_photo['url']
-                                elif file["type"] == "pretty_cards":
-                                    big_photo = max(file['pretty_cards']['cards']['images'], key=lambda x: x['width'])
-                                    url_photo = big_photo['url']
-                                yield scrapy.Request(url_photo)
+                                yield scrapy.Request(url_photo, meta={'dont_count': True})
                             except Exception as e:
                                 print(e)
         except KeyError as e:
